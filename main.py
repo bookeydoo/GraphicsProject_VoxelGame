@@ -130,6 +130,7 @@ def CreateShaderProgram(vertexShader, fragShader):
     return program
 
 def ExitFunc():
+    pygame.event.set_grab(False)
     pygame.quit()
 
 #IMGUI INPUT
@@ -153,6 +154,8 @@ def main():
     display = (1600, 800)
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Simple voxel test")
+
+    pygame.event.set_grab(True)
 
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_BLEND)
@@ -214,15 +217,13 @@ def main():
     #Matrix setup
     ######################################################
 
-    camera=Camera(1600,800)
+    camera=Camera(1600,800,Position=[0,0,-5])
     # Helpers to get uniform locations TODO : understand what these do
     model_loc = glGetUniformLocation(ShaderProgram, "model")
     view_loc = glGetUniformLocation(ShaderProgram, "view")
     proj_loc = glGetUniformLocation(ShaderProgram, "projection")
     
    
-    #init Camera
-    CameraPos = [0, -3, -20]
     
 
 
@@ -270,9 +271,9 @@ def main():
                     break
 
                 if event.key == pygame.K_d:
-                    CameraPos[0] += 0.5
+                    pass
                 if event.key == pygame.K_a:
-                    CameraPos[0] -= 0.5
+                    pass
 
                 if event.key == pygame.K_r:
                     if not Rotated:
@@ -281,7 +282,6 @@ def main():
                         Rotated = False
 
         keys=pygame.key.get_pressed()
-    #Compute mouse delta
         keys_dict = {
             "W": keys[pygame.K_w],
             "S": keys[pygame.K_s],
@@ -290,6 +290,8 @@ def main():
             "SPACE": keys[pygame.K_SPACE],
             "CTRL": keys[pygame.K_LCTRL]
         }
+
+        #Compute mouse delta
         mouse_dx,mouse_dy=pygame.mouse.get_rel() 
         camera.inputs(keys_dict,mouse_dx,mouse_dy)
 
@@ -323,10 +325,14 @@ def main():
             # -----------------------
 
         #Rotation logic
-        rotationAngle+=1.0 
-        model=pyrr.matrix44.create_from_axis_rotation(
-            axis=[0.5,1.0,0.0],theta=np.radians(rotationAngle)
+        rotation = pyrr.matrix44.create_from_axis_rotation(
+            axis=[0.5, 1.0, 0.0], theta=np.radians(rotationAngle)
         ).astype(np.float32)
+
+        translation = pyrr.matrix44.create_from_translation([0, 0, -8])
+        rotationAngle+=1.0 
+        model=pyrr.matrix44.multiply(translation,rotation)
+            
 
         ######################################################
         #Rendering

@@ -33,7 +33,7 @@ class Camera:
         # Movement
         forward = pyrr.vector.normalize(self.Orientation)
         right = pyrr.vector.normalize(pyrr.vector3.cross(forward, self.Up))
-
+        
         if keys.get("W"):  # Forward
             self.Position += forward * self.speed
         if keys.get("S"):  # Backward
@@ -46,16 +46,22 @@ class Camera:
             self.Position += self.Up * self.speed
         if keys.get("CTRL"):  # Down
             self.Position -= self.Up * self.speed
-
-        # Mouse look
-        rot_x = pyrr.matrix44.create_from_axis_rotation(right, np.radians(-mouse_dy * self.sensitivity))
-        rot_y = pyrr.matrix44.create_from_axis_rotation(self.Up, np.radians(-mouse_dx * self.sensitivity))
-
-        # Apply rotation to orientation
-        orientation4 = np.append(self.Orientation, 1.0)  # Convert to 4D vector for matrix mul
-        orientation4 = rot_x @ orientation4
-        orientation4 = rot_y @ orientation4
-        self.Orientation = pyrr.vector3.create(*orientation4[:3], dtype=np.float32)
-        self.Orientation = pyrr.vector.normalize(self.Orientation)
-
-       
+        
+        # Mouse look - only process if there's actual movement
+        if mouse_dx != 0 or mouse_dy != 0:
+            # Yaw (left-right rotation around Up axis)
+            yaw_angle = np.radians(-mouse_dx * self.sensitivity)
+            rot_y = pyrr.matrix44.create_from_axis_rotation(self.Up, yaw_angle)
+            
+            # Pitch (up-down rotation around Right axis)
+            pitch_angle = np.radians(-mouse_dy * self.sensitivity)
+            rot_x = pyrr.matrix44.create_from_axis_rotation(right, pitch_angle)
+            
+            # Apply rotations to orientation (yaw first, then pitch)
+            orientation4 = np.array([*self.Orientation, 0.0], dtype=np.float32)  # 0.0 for direction vector
+            orientation4 = pyrr.matrix44.apply_to_vector(rot_y, orientation4)
+            orientation4 = pyrr.matrix44.apply_to_vector(rot_x, orientation4)
+            
+            # Extract the first 3 components
+            self.Orientation = pyrr.Vector3(orientation4[:3])
+            self.Orientation = pyrr.vector.normalize(self.Orientation)
