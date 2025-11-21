@@ -19,7 +19,7 @@ class VAO:
             stride,
             offsetPtr
         )
-        glEnableVertexArrayAttrib(layout)
+        glEnableVertexAttribArray(layout)
         VBO.unbind()
 
     def bind(self):

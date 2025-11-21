@@ -1,7 +1,5 @@
 
 from OpenGL.GL import *
-import ctypes
-
 
 class VBO:
     def __init__(self,vertices=None):
