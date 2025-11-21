@@ -4,51 +4,13 @@ import math
 import imgui
 import pygame
 import numpy as np
-from imgui.integrations.pygame import PygameRenderer
+from imgui.integrations.opengl import ProgrammablePipelineRenderer
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from VBO import VBO 
 from VAO import VAO
 from EBO import EBO 
-
-
-
-def InitOpengl():
-     # Request OpenGL 3.3 Core context
-    pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
-    pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
-    pygame.display.gl_set_attribute(
-        pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_COMPATIBILITY
-    )
-
-
-def Compile_Shader(source,ShaderType):
-    shader=glCreateShader(ShaderType)
-    glShaderSource(shader,source)
-    glCompileShader(shader)
-
-    if glGetShaderiv(shader,GL_COMPILE_STATUS) != GL_TRUE:
-        raise Exception(glGetShaderInfoLog(shader))
-    return shader
-
-def CreateShaderProgram(vertexShader,fragShader):
-    program=glCreateProgram()
-    vs=Compile_Shader(vertexShader,GL_VERTEX_SHADER)
-    fs=Compile_Shader(fragShader,GL_FRAGMENT_SHADER)
-    glAttachShader(program,vs)
-    glAttachShader(program,fs)
-    glLinkProgram(program)
-
-    if not glGetProgramiv(program,GL_LINK_STATUS):
-        raise Exception(glGetProgramInfoLog(program))
-    glDeleteShader(vs)
-    glDeleteShader(fs)
-    return program
-
-
-def ExitFunc():
-    pygame.quit()
 
 
 ####################################################################################
@@ -136,6 +98,49 @@ indices =np.array ([
 #],dtype=np.float32)
  
 
+def InitOpengl():
+    # Request OpenGL 3.3 compatibility context (your imgui/Pygame renderer expects this)
+    pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
+    pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
+    pygame.display.gl_set_attribute(
+        pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_COMPATIBILITY
+    )
+
+def Compile_Shader(source, ShaderType):
+    shader = glCreateShader(ShaderType)
+    glShaderSource(shader, source)
+    glCompileShader(shader)
+
+    if glGetShaderiv(shader, GL_COMPILE_STATUS) != GL_TRUE:
+        raise Exception(glGetShaderInfoLog(shader))
+    return shader
+
+def CreateShaderProgram(vertexShader, fragShader):
+    program = glCreateProgram()
+    vs = Compile_Shader(vertexShader, GL_VERTEX_SHADER)
+    fs = Compile_Shader(fragShader, GL_FRAGMENT_SHADER)
+    glAttachShader(program, vs)
+    glAttachShader(program, fs)
+    glLinkProgram(program)
+
+    if not glGetProgramiv(program, GL_LINK_STATUS):
+        raise Exception(glGetProgramInfoLog(program))
+    glDeleteShader(vs)
+    glDeleteShader(fs)
+    return program
+
+def ExitFunc():
+    pygame.quit()
+
+#IMGUI INPUT
+def process_pygame_inputs():
+    io = imgui.get_io()
+    io.mouse_pos = pygame.mouse.get_pos()
+    io.mouse_down[0] = pygame.mouse.get_pressed()[0]
+    io.mouse_down[1] = pygame.mouse.get_pressed()[1]
+    io.mouse_down[2] = pygame.mouse.get_pressed()[2]
+
+
 def main():
     #pygame.mixer.pre_init(44100, -16, 2, 512)
 
@@ -150,6 +155,8 @@ def main():
     pygame.display.set_caption("Simple voxel test")
 
     glEnable(GL_DEPTH_TEST)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     #import shaders
     BaseDir=os.path.dirname(os.path.abspath(__file__))
@@ -198,9 +205,10 @@ def main():
     VAO1.unbind()
     
 
+
     # Setup ImGui
     imgui.create_context()
-    renderer = PygameRenderer()
+    renderer = ProgrammablePipelineRenderer()
 
     ######################################################
     #Matrix setup
@@ -246,7 +254,6 @@ def main():
 
         # Handle events
         for event in pygame.event.get():
-            renderer.process_event(event)
             if event.type == pygame.QUIT:
                 ExitFunc()
 
@@ -280,16 +287,23 @@ def main():
 
         # -----------------------
         # Update ImGui screen size
-        w, h = pygame.display.get_surface().get_size()
-        imgui.get_io().display_size = (w, h)
+        io=imgui.get_io()
+        io.display_size=pygame.display.get_surface().get_size()
+        io.display_fb_scale = (1.0, 1.0)
+        
+        process_pygame_inputs()
 
-        renderer.process_event(event)
         imgui.new_frame()
+        imgui.set_next_window_position(50,50)
+        imgui.set_next_window_size(400,400)
 
         if ShowDevWindow==True:
             # UI (must have begin/end)
             imgui.begin("Debug Window")
             imgui.text("This is a test window")
+            imgui.text("IF YOU SEE THIS, IMGUI IS WORKING")
+            imgui.separator()
+
             if imgui.button("Click me"):
              print("hello world")
             imgui.end()
