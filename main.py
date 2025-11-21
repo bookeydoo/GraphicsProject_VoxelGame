@@ -1,38 +1,62 @@
-import pygame
 import os
 import math
 import imgui
+import pygame
+import numpy as np
 from imgui.integrations.pygame import PygameRenderer
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
+from GraphicsProject.VAO import VBO 
+from GraphicsProject.VAO import VAO
+
+
+
+def InitOpengl():
+     # Request OpenGL 3.3 Core context
+    pygame.display.gl_set_attribute(GL_CONTEXT_MAJOR_VERSION, 3)
+    pygame.display.gl_set_attribute(GL_CONTEXT_MINOR_VERSION, 3)
+    pygame.display.gl_set_attribute(
+        GL_CONTEXT_PROFILE_MASK, GL_CONTEXT_PROFILE_CORE
+    )
+
+
+def Compile_Shader(source,ShaderType):
+    shader=glCreateShader(ShaderType)
+    glShaderSource(shader,source)
+    glCompileShader(shader)
+
+    if glGetShaderiv(shader,GL_COMPILE_STATUS) != GL_TRUE:
+        raise Exception(glGetShaderInfoLog(shader))
+    return shader
+
+def ExitFunc():
+    pygame.quit()
+
 
 ####################################################################################
         ###Defining the voxel shape###
 ####################################################################################
 # Define vertices (corners)
-vertices = [
+vertices = np.array([
     [2, 1, -1],[2, -1, -1],[-1, -1, -1],[-1, 1, -1],
     [2, 1, 1] ,[2, -1, 1] ,[-1, -1, 1] ,[-1, 1, 1]
-]
+],dtype=np.float32)
 
 # Define edges (lines between vertices)
-edges = [
+edges = np.array([
     (0,1), (1,2), (2,3), (3,0),
     (4,5), (5,6), (6,7), (7,4),
     (0,4), (1,5), (2,6), (3,7)
-]
+],dtype=np.float32)
 
 # Define faces (polygons)
-surfaces = [
+surfaces = np.array([
     (0,1,2,3), (4,5,6,7), (0,1,5,4),
     (2,3,7,6), (1,2,6,5), (0,3,7,4)
-]
-
-def ExitFunc():
-    pygame.quit()
-
+],dtype=np.float32)
  
+
 def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
@@ -41,16 +65,26 @@ def main():
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Simple voxel test")
 
+    ######################################################
+    #VBO and VAOS
+    ######################################################
+
+    #1st VAOs
+    VAO1=VAO()
+    VAO1.bind()
+
+    #1.VBO for cube geometry
+    CubeVBO=VBO(vertices)
+
+    #2.VBO for instance positions 
+    InstanceVBO=VBO()
+    InstanceVBO_ID=InstanceVBO.ID
+
     # Setup ImGui
     imgui.create_context()
     renderer = PygameRenderer()
 
     # OpenGL Lighting 
-    glEnable(GL_LIGHTING)
-    glEnable(GL_LIGHT0)
-    glEnable(GL_COLOR_MATERIAL)
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-    glShadeModel(GL_SMOOTH)
 
     #init Camera
     CameraPos = [0, -3, -20]
