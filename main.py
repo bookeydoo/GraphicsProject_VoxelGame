@@ -11,7 +11,7 @@ from OpenGL.GLU import *
 from VBO import VBO 
 from VAO import VAO
 from EBO import EBO 
-
+from Camera import Camera
 
 ####################################################################################
         ###Defining the voxel shape###
@@ -214,19 +214,13 @@ def main():
     #Matrix setup
     ######################################################
 
-    view= pyrr.matrix44.create_look_at(
-        eye=[0,0,3],target=[0,0,0],up=[0,1,0]
-    ).astype(np.float32)
-    projection= pyrr.matrix44.create_perspective_projection(
-        fovy=45.0,aspect=display[0]/display[1],near=0.1,far=50.0
-    ).astype(np.float32)
-
+    camera=Camera(1600,800)
     # Helpers to get uniform locations TODO : understand what these do
     model_loc = glGetUniformLocation(ShaderProgram, "model")
     view_loc = glGetUniformLocation(ShaderProgram, "view")
     proj_loc = glGetUniformLocation(ShaderProgram, "projection")
     
-    
+   
     #init Camera
     CameraPos = [0, -3, -20]
     
@@ -254,6 +248,7 @@ def main():
 
         # Handle events
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
                 ExitFunc()
 
@@ -284,6 +279,24 @@ def main():
                         Rotated = True
                     else:
                         Rotated = False
+
+        keys=pygame.key.get_pressed()
+    #Compute mouse delta
+        keys_dict = {
+            "W": keys[pygame.K_w],
+            "S": keys[pygame.K_s],
+            "A": keys[pygame.K_a],
+            "D": keys[pygame.K_d],
+            "SPACE": keys[pygame.K_SPACE],
+            "CTRL": keys[pygame.K_LCTRL]
+        }
+        mouse_dx,mouse_dy=pygame.mouse.get_rel() 
+        camera.inputs(keys_dict,mouse_dx,mouse_dy)
+
+        projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=50.0)
+        glUniformMatrix4fv(view_loc,1,GL_FALSE,view)
+        glUniformMatrix4fv(proj_loc,1,GL_FALSE,projection)
+ 
 
         # -----------------------
         # Update ImGui screen size
