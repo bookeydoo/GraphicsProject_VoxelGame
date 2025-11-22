@@ -8,10 +8,11 @@ from imgui.integrations.opengl import ProgrammablePipelineRenderer
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from VBO import VBO 
-from VAO import VAO
-from EBO import EBO 
-from Camera import Camera
+from Classes.VBO import VBO 
+from Classes.VAO import VAO
+from Classes.EBO import EBO 
+from Classes.Camera import Camera
+from Classes.WorldChunks import World 
 
 WORLD_FORWARD = pyrr.Vector3([0.0, 0.0, -1.0])  # Negative Z-axis is typically "forward"
 WORLD_BACKWARD = pyrr.Vector3([0.0, 0.0, 1.0])   # Positive Z-axis is "backward"
@@ -224,7 +225,7 @@ def main():
     yeezytext=load_texture(TexturesDir+"/yeezus.jpg")
 
     #PERLIN NOISE TEXT
-    PerlinNoise1=load_texture(TexturesDir+"/PerlinNoise.png")
+    PerlinNoise1=load_texture(TexturesDir+"/perlin_noise.png")
 
     
     #import shaders
@@ -263,6 +264,8 @@ def main():
 
     #EBO
     ebo=EBO(indices)
+    ebo_ID=ebo.ID
+    
 
     #stride =8*4 floats
     stride=8*4
@@ -270,6 +273,22 @@ def main():
     VAO1.LinkVBO(CubeVBO,0,3,GL_FLOAT,stride,0)
     VAO1.LinkVBO(CubeVBO,1,3,GL_FLOAT,stride,12)
     VAO1.LinkVBO(CubeVBO,2,2,GL_FLOAT,stride,24)
+
+
+    # --- NOW set up the per-instance attribute layout ---
+    # We'll use attribute location 3 for instance positions (vec3).
+    # Bind the instance VBO and allocate an empty buffer (GL_DYNAMIC_DRAW).
+    glBindBuffer(GL_ARRAY_BUFFER, InstanceVBO_ID)
+    # Allocate space for some instances initially (zero bytes okay) — will be replaced each frame
+    glBufferData(GL_ARRAY_BUFFER, 0, None, GL_DYNAMIC_DRAW)
+
+    # define attribute 3 (vec3)
+    glEnableVertexAttribArray(3)
+    # attribute pointer: 3 floats, tightly packed, offset 0
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * 4, ctypes.c_void_p(0))
+    # tell GL this attribute is per-instance
+    glVertexAttribDivisor(3, 1)
+
 
     VAO1.unbind()
     
@@ -308,6 +327,11 @@ def main():
     #Debug vars 
     ShowDevWindow=True
 
+    #INIT WORLD
+    MyWorld=World()
+    MyWorld.InitWorld(np.array(camera.Position,dtype=np.float32))
+    
+    
 
 
     while True:
@@ -445,19 +469,28 @@ def main():
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
 
         VAO1.bind()
-        for pos in cube_positions:
-            # Make a model matrix for THIS cube
-            translation = pyrr.matrix44.create_from_translation(pos)
-            rotation = pyrr.matrix44.create_from_axis_rotation(
-                axis=[0.5, 1.0, 0.0], theta=np.radians(rotationAngle)
-            )
 
-            model = pyrr.matrix44.multiply(translation, rotation)
-            glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
-            glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
+        #Call world generation func
+        MyWorld.DrawVisiChunks(InstanceVBO_ID,ebo_ID)
+
+        ######################
+        ###Old world generation 
+        ######################
+        # for pos in cube_positions:
+        #     # Make a model matrix for THIS cube
+        #     translation = pyrr.matrix44.create_from_translation(pos)
+        #     rotation = pyrr.matrix44.create_from_axis_rotation(
+        #         axis=[0.5, 1.0, 0.0], theta=np.radians(rotationAngle)
+        #     )
+
+        #     model = pyrr.matrix44.multiply(translation, rotation)
+        #     glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+        #     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
 
 
         VAO1.unbind()
+        CubeVBO.unbind()
+        InstanceVBO.unbind()
 
 
         # Render ImGui on top
