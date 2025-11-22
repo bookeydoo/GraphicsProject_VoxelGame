@@ -223,6 +223,9 @@ def main():
     TexturesDir=os.path.join(BaseDir,"Resources")
     yeezytext=load_texture(TexturesDir+"/yeezus.jpg")
 
+    #PERLIN NOISE TEXT
+    PerlinNoise1=load_texture(TexturesDir+"/PerlinNoise.png")
+
     
     #import shaders
     ShaderDir=os.path.join(BaseDir,"shaders")
@@ -430,8 +433,13 @@ def main():
         glClearColor(135/255, 206/255, 235/255, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+        #Cube Textures
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D,yeezytext)
+        #Perlin Noise Text
+        glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D,PerlinNoise1)
+
         glUniform1i(glGetUniformLocation(ShaderProgram,"texture1"),0)
 
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
