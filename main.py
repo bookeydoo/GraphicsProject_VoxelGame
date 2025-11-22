@@ -1,6 +1,6 @@
 import os
 import pyrr
-import math
+from PIL import Image
 import imgui
 import pygame
 import numpy as np
@@ -13,9 +13,36 @@ from VAO import VAO
 from EBO import EBO 
 from Camera import Camera
 
+WORLD_FORWARD = pyrr.Vector3([0.0, 0.0, -1.0])  # Negative Z-axis is typically "forward"
+WORLD_BACKWARD = pyrr.Vector3([0.0, 0.0, 1.0])   # Positive Z-axis is "backward"
+WORLD_RIGHT = pyrr.Vector3([1.0, 0.0, 0.0])      # Positive X-axis is "right"
+WORLD_LEFT = pyrr.Vector3([-1.0, 0.0, 0.0])      # Negative X-axis is "left"
+WORLD_UP = pyrr.Vector3([0.0, 1.0, 0.0])         # Positive Y-axis is "up"
+
 ####################################################################################
         ###Defining the voxel shape###
 ####################################################################################
+cube_positions = [
+    [0, 0, -8],
+    [0, 0, 6],
+    [1, 1, 8],
+    [1, 0, 3],
+    [2, 1, 5],
+    [3, 3, 5],
+    [3, 4, 7],
+    [1, 1, -5],
+    [1, 1, -5],
+    [1, 1, -5],
+    [-2, 0, -8],
+    [0, 2, -8],
+    [0, -2, -8],
+    [2, 2, -8],
+    [-2, -2, -8],
+    [3, 0, -10],
+    [-3, 1, -7],
+    [0, 0, -12]
+]
+
 # Define vertices (corners)
 vertices = np.array([
     
@@ -129,6 +156,32 @@ def CreateShaderProgram(vertexShader, fragShader):
     glDeleteShader(fs)
     return program
 
+def load_texture(path):
+    # Create texture ID
+    textureID = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_2D, textureID)
+
+    # Texture wrapping options
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+    # Texture filtering options
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+    # Load image
+    image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
+    img_data = image.convert("RGBA").tobytes()
+    width, height = image.size
+
+    # Upload image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, img_data)
+
+    glGenerateMipmap(GL_TEXTURE_2D)
+
+    return textureID
+
 def ExitFunc():
     pygame.event.set_grab(False)
     pygame.quit()
@@ -155,14 +208,23 @@ def main():
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Simple voxel test")
 
+    pygame.mouse.set_visible(False)
     pygame.event.set_grab(True)
 
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    #import shaders
+    #current directory
     BaseDir=os.path.dirname(os.path.abspath(__file__))
+
+    #Import textures
+    
+    TexturesDir=os.path.join(BaseDir,"Resources")
+    yeezytext=load_texture(TexturesDir+"/yeezus.jpg")
+
+    
+    #import shaders
     ShaderDir=os.path.join(BaseDir,"shaders")
 
     vertexPath=os.path.join(ShaderDir,"shader.vert")
@@ -187,6 +249,7 @@ def main():
     #1st VAOs
     VAO1=VAO()
     VAO1.bind()
+    
 
     #1.VBO for cube geometry
     CubeVBO=VBO(vertices)
@@ -217,16 +280,15 @@ def main():
     #Matrix setup
     ######################################################
 
-    camera=Camera(1600,800,Position=[0,0,-5])
+    camera=Camera(1600,800,Position=[2,0,2])
+
+    glUseProgram(ShaderProgram)
     # Helpers to get uniform locations TODO : understand what these do
     model_loc = glGetUniformLocation(ShaderProgram, "model")
     view_loc = glGetUniformLocation(ShaderProgram, "view")
     proj_loc = glGetUniformLocation(ShaderProgram, "projection")
     
    
-    
-
-
     #Element 
 
     rotationAngle=0.0
@@ -270,32 +332,52 @@ def main():
                     ExitFunc()
                     break
 
-                if event.key == pygame.K_d:
-                    pass
-                if event.key == pygame.K_a:
-                    pass
-
                 if event.key == pygame.K_r:
                     if not Rotated:
                         Rotated = True
                     else:
                         Rotated = False
-
+        
         keys=pygame.key.get_pressed()
-        keys_dict = {
-            "W": keys[pygame.K_w],
-            "S": keys[pygame.K_s],
-            "A": keys[pygame.K_a],
-            "D": keys[pygame.K_d],
-            "SPACE": keys[pygame.K_SPACE],
-            "CTRL": keys[pygame.K_LCTRL]
-        }
+        if keys[pygame.K_w]:
+            camera.Position += camera.Orientation* camera.speed
+            print("W is pressed")
+            print(camera.Position)
+
+        if keys[pygame.K_s]:
+            camera.Position -= camera.Orientation * camera.speed
+            print("S is pressed")
+            print(camera.Position)
+
+        if keys[pygame.K_d]:
+            camera.Position +=   camera.Right * camera.speed 
+            print("d is pressed")
+            print(camera.Position)
+
+        if keys[pygame.K_a]:
+            camera.Position -=  camera.speed * camera.Right 
+            print("a is pressed")
+
+        if keys[pygame.K_SPACE]:
+            camera.Position += WORLD_UP * camera.speed 
+
+        if keys[pygame.K_LCTRL]:
+            camera.Position -= camera.Up * camera.speed 
+
+
+            
+        #DEBUGGING
+        print("Pos:",camera.Position)
+
 
         #Compute mouse delta
         mouse_dx,mouse_dy=pygame.mouse.get_rel() 
-        camera.inputs(keys_dict,mouse_dx,mouse_dy)
+        camera.inputs(mouse_dx,mouse_dy)
 
-        projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=50.0)
+        camera.update_vectors()
+    
+
+        projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=500.0)
         glUniformMatrix4fv(view_loc,1,GL_FALSE,view)
         glUniformMatrix4fv(proj_loc,1,GL_FALSE,projection)
  
@@ -316,8 +398,15 @@ def main():
             # UI (must have begin/end)
             imgui.begin("Debug Window")
             imgui.text("This is a test window")
-            imgui.text("IF YOU SEE THIS, IMGUI IS WORKING")
-            imgui.separator()
+            
+            pos_x=camera.Position[0]
+            pos_y=camera.Position[1]
+            pos_z=camera.Position[2]
+
+            imgui.text("--Position--")            
+            imgui.text(f"x pos:{pos_x:.2f}")
+            imgui.text(f"y pos:{pos_y:.2f}")
+            imgui.text(f"z pos:{pos_z:.2f}")
 
             if imgui.button("Click me"):
              print("hello world")
@@ -330,7 +419,6 @@ def main():
         ).astype(np.float32)
 
         translation = pyrr.matrix44.create_from_translation([0, 0, -8])
-        rotationAngle+=1.0 
         model=pyrr.matrix44.multiply(translation,rotation)
             
 
@@ -342,15 +430,25 @@ def main():
         glClearColor(135/255, 206/255, 235/255, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        glUseProgram(ShaderProgram)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D,yeezytext)
+        glUniform1i(glGetUniformLocation(ShaderProgram,"texture1"),0)
 
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
-        glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
-        glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
 
         VAO1.bind()
-        #Draw elements
-        glDrawElements(GL_TRIANGLES,len(indices),GL_UNSIGNED_INT,None)
+        for pos in cube_positions:
+            # Make a model matrix for THIS cube
+            translation = pyrr.matrix44.create_from_translation(pos)
+            rotation = pyrr.matrix44.create_from_axis_rotation(
+                axis=[0.5, 1.0, 0.0], theta=np.radians(rotationAngle)
+            )
+
+            model = pyrr.matrix44.multiply(translation, rotation)
+            glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+            glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
+
+
         VAO1.unbind()
 
 
