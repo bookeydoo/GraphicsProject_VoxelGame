@@ -2,12 +2,13 @@ from dataclasses import dataclass,field
 from OpenGL.GL import *
 import numpy as np
 
-Chunk_Size=4
+Chunk_Size=8
 Voxel_Count=Chunk_Size**3
 
 @dataclass
 class Voxel:
     BlockType: np.uint32=np.uint32(0)
+
 
 @dataclass
 class Chunk:
@@ -38,42 +39,55 @@ class World:
                 # all chunks are the same size
                 chunk.Size = np.array([Chunk_Size]*3, dtype=np.float32)
 
+                for i in range(Voxel_Count):
+                    if cz<0:
+                        chunk.Voxels[i].BlockType=1
+                    elif cz>0:
+                        chunk.Voxels[i].BlockType=2
+                    else:
+                        chunk.Voxels[i].BlockType=3
+
+
+
                 #Insert into Hashmap(dict)
                 key=(cx,0,cz)
                 self.WorldMap[key]=chunk
             
-    def DrawVisiChunks(self,instanceVBO_ID,EBO_ID):
-       self.VisibleCubePositions.clear() 
+    def DrawVisiChunks(self, instanceVBO_ID, EBO_ID):
+        self.VisibleCubePositions.clear()
+        blockTypes = []
 
-       for key,chunk in self.WorldMap.items():
-           chunk_offset= chunk.Position*Chunk_Size
+        # 1️⃣ Collect positions and block types
+        for key, chunk in self.WorldMap.items():
+            chunk_offset = chunk.Position * Chunk_Size
 
-           for z in range(Chunk_Size):
+            for z in range(Chunk_Size):
                 for y in range(Chunk_Size):
                     for x in range(Chunk_Size):
-                        index = x + y * Chunk_Size + z * Chunk_Size* Chunk_Size 
+                        index = x + y * Chunk_Size + z * Chunk_Size * Chunk_Size
+                        voxel = chunk.Voxels[index]
 
                         local_pos = np.array([x, y, z], dtype=np.float32)
-
                         world_pos = chunk_offset + local_pos
 
                         self.VisibleCubePositions.append(world_pos)
+                        blockTypes.append(voxel.BlockType)
 
-           if self.VisibleCubePositions:
-              # convert list of vec3 to numpy float32 array
-                instance_data = np.array(self.VisibleCubePositions, dtype=np.float32)
+        # 2️⃣ Upload instance data to GPU (after loops)
+        if self.VisibleCubePositions:
+            instance_data = np.zeros((len(self.VisibleCubePositions), 4), dtype=np.float32)
+            instance_data[:, :3] = self.VisibleCubePositions
+            instance_data[:, 3] = blockTypes
 
-                glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_ID)
-                glBufferData(GL_ARRAY_BUFFER,
-                            instance_data.nbytes,
-                            instance_data,
-                            GL_DYNAMIC_DRAW)
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_ID)
+            glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_ID)
+            glBufferData(GL_ARRAY_BUFFER, instance_data.nbytes, instance_data, GL_DYNAMIC_DRAW)
 
-                glDrawElementsInstanced(
-                    GL_TRIANGLES,
-                    36,               # same EBO size (36)
-                    GL_UNSIGNED_INT,
-                    None,                   # pointer NULL -> offset 0
-                    len(self.VisibleCubePositions)
-                ) 
+            # 3️⃣ Draw instanced
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_ID)
+            glDrawElementsInstanced(
+                GL_TRIANGLES,
+                36,  # number of indices per cube
+                GL_UNSIGNED_INT,
+                None,
+                len(self.VisibleCubePositions)
+            )

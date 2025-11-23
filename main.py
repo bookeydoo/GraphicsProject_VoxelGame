@@ -23,26 +23,6 @@ WORLD_UP = pyrr.Vector3([0.0, 1.0, 0.0])         # Positive Y-axis is "up"
 ####################################################################################
         ###Defining the voxel shape###
 ####################################################################################
-cube_positions = [
-    [0, 0, -8],
-    [0, 0, 6],
-    [1, 1, 8],
-    [1, 0, 3],
-    [2, 1, 5],
-    [3, 3, 5],
-    [3, 4, 7],
-    [1, 1, -5],
-    [1, 1, -5],
-    [1, 1, -5],
-    [-2, 0, -8],
-    [0, 2, -8],
-    [0, -2, -8],
-    [2, 2, -8],
-    [-2, -2, -8],
-    [3, 0, -10],
-    [-3, 1, -7],
-    [0, 0, -12]
-]
 
 # Define vertices (corners)
 vertices = np.array([
@@ -224,6 +204,10 @@ def main():
     TexturesDir=os.path.join(BaseDir,"Resources")
     yeezytext=load_texture(TexturesDir+"/yeezus.jpg")
 
+    sandtext=load_texture(TexturesDir+"/sandTexture.jpg")
+    snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
+    dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
+
     #PERLIN NOISE TEXT
     PerlinNoise1=load_texture(TexturesDir+"/perlin_noise.png")
 
@@ -231,7 +215,7 @@ def main():
     #import shaders
     ShaderDir=os.path.join(BaseDir,"shaders")
 
-    vertexPath=os.path.join(ShaderDir,"shader.vert")
+    vertexPath=os.path.join(ShaderDir,"noise.vert")
     fragPath=os.path.join(ShaderDir,"shader.frag")
 
     with open(vertexPath, 'r') as f:
@@ -245,53 +229,43 @@ def main():
     #######################################################
 
     ShaderProgram=CreateShaderProgram(vertexSrc,fragmentSrc)
-    
     ######################################################
-    #VBO and VAOS
+    # VBO and VAO setup
     ######################################################
 
-    #1st VAOs
-    VAO1=VAO()
+    VAO1 = VAO()
     VAO1.bind()
-    
 
-    #1.VBO for cube geometry
-    CubeVBO=VBO(vertices)
-
-    #2.VBO for instance positions 
-    InstanceVBO=VBO()
-    InstanceVBO_ID=InstanceVBO.ID
-
-    #EBO
-    ebo=EBO(indices)
+    # --- Cube Vertex Data ---
+    CubeVBO = VBO(vertices)
+    ebo = EBO(indices)
     ebo_ID=ebo.ID
-    
 
-    #stride =8*4 floats
-    stride=8*4
+    stride = 8 * 4
+    VAO1.LinkVBO(CubeVBO, 0, 3, GL_FLOAT, stride, 0)     # pos
+    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color (unused)
+    VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 24)    # texcoord
 
-    VAO1.LinkVBO(CubeVBO,0,3,GL_FLOAT,stride,0)
-    VAO1.LinkVBO(CubeVBO,1,3,GL_FLOAT,stride,12)
-    VAO1.LinkVBO(CubeVBO,2,2,GL_FLOAT,stride,24)
-
-
-    # --- NOW set up the per-instance attribute layout ---
-    # We'll use attribute location 3 for instance positions (vec3).
-    # Bind the instance VBO and allocate an empty buffer (GL_DYNAMIC_DRAW).
+    # --- Instance VBO ---
+    InstanceVBO = VBO(Static=False)
+    InstanceVBO_ID = InstanceVBO.ID
     glBindBuffer(GL_ARRAY_BUFFER, InstanceVBO_ID)
-    # Allocate space for some instances initially (zero bytes okay) — will be replaced each frame
+
+    # We don't upload instance_data here (world will upload every frame)
     glBufferData(GL_ARRAY_BUFFER, 0, None, GL_DYNAMIC_DRAW)
 
-    # define attribute 3 (vec3)
+    # Attribute 3 = instance position vec3
     glEnableVertexAttribArray(3)
-    # attribute pointer: 3 floats, tightly packed, offset 0
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * 4, ctypes.c_void_p(0))
-    # tell GL this attribute is per-instance
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(0))
     glVertexAttribDivisor(3, 1)
 
+    # Attribute 4 = block type float
+    glEnableVertexAttribArray(4)
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(12))
+    glVertexAttribDivisor(4, 1)
 
     VAO1.unbind()
-    
+        
 
 
     # Setup ImGui
@@ -460,32 +434,35 @@ def main():
         #Cube Textures
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D,yeezytext)
-        #Perlin Noise Text
+
         glActiveTexture(GL_TEXTURE1)
+        glBindTexture(GL_TEXTURE_2D,dirttext)
+
+        glActiveTexture(GL_TEXTURE2)
+        glBindTexture(GL_TEXTURE_2D,sandtext)
+
+        glActiveTexture(GL_TEXTURE3)
+        glBindTexture(GL_TEXTURE_2D,snowtext)
+
+
+        
+        #Perlin Noise Text
+        glActiveTexture(GL_TEXTURE5)
         glBindTexture(GL_TEXTURE_2D,PerlinNoise1)
 
-        glUniform1i(glGetUniformLocation(ShaderProgram,"texture1"),0)
+        glUniform1i(glGetUniformLocation(ShaderProgram,"noiseTexture"),5)
+        glUniform1f(glGetUniformLocation(ShaderProgram,"heightScale"),2.0)
 
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
+        glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
+        glUniformMatrix4fv(proj_loc, 1, GL_FALSE,projection)
+        glUniform1iv(glGetUniformLocation(ShaderProgram,"BlockTextures"),
+                     4,np.array([0,1,2,3],dtype=np.int32))
 
         VAO1.bind()
 
         #Call world generation func
         MyWorld.DrawVisiChunks(InstanceVBO_ID,ebo_ID)
-
-        ######################
-        ###Old world generation 
-        ######################
-        # for pos in cube_positions:
-        #     # Make a model matrix for THIS cube
-        #     translation = pyrr.matrix44.create_from_translation(pos)
-        #     rotation = pyrr.matrix44.create_from_axis_rotation(
-        #         axis=[0.5, 1.0, 0.0], theta=np.radians(rotationAngle)
-        #     )
-
-        #     model = pyrr.matrix44.multiply(translation, rotation)
-        #     glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
-        #     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
 
 
         VAO1.unbind()
