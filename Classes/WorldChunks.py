@@ -141,7 +141,7 @@ class World:
         face_vertices[:, 6] = wz + 0.5  # voxel center z 
         face_vertices[:, 7] = float(BlockType)  # Block type 
 
-        vertex_data_list.append(face_vertices.flatten())
+        vertex_data_list.append(face_vertices.flatten('C'))
         face_indices_abs = face_indices_rel + vertex_count 
         index_data_list.append(face_indices_abs)
         
@@ -294,11 +294,11 @@ class World:
             total_indices = len(final_indices)
 
 
-            glBindVertexArray(VAO_ID)
             glBindBuffer(GL_ARRAY_BUFFER, CubeVBO_ID) 
             glBufferData(GL_ARRAY_BUFFER, final_vertices.nbytes, final_vertices, GL_DYNAMIC_DRAW) 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_ID)
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, final_indices.nbytes, final_indices, GL_DYNAMIC_DRAW)
 
+            glBindVertexArray(VAO_ID)
             glDrawElements(GL_TRIANGLES, total_indices, GL_UNSIGNED_INT, None)
             glBindVertexArray(0)

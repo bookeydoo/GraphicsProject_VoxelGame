@@ -255,8 +255,9 @@ def main():
     VAO1.LinkVBO(CubeVBO, 0, 3, GL_FLOAT, stride, 0)     # pos
     VAO1.LinkVBO(CubeVBO, 1, 2, GL_FLOAT, stride, 12)    # texcoord 
     VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 20)    # voxelcenter
-    VAO1.LinkVBO(CubeVBO, 3, 1, GL_FLOAT, stride, 28)    # voxelcenter
+    VAO1.LinkVBO(CubeVBO, 3, 1, GL_FLOAT, stride, 28)    # garbage/ blocktype
 
+    CubeVBO.unbind()
     VAO1.unbind()
         
 
@@ -460,7 +461,6 @@ def main():
         glUniform1iv(glGetUniformLocation(ShaderProgram,"BlockTextures"),
                      4,np.array([0,1,2,3],dtype=np.int32))
 
-        VAO1.bind()
 
         #Call world generation func
         MyWorld.DrawVisiChunks(MyFrustum,CubeVBO_ID,ebo_ID,VAO1.ID)
