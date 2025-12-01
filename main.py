@@ -243,32 +243,18 @@ def main():
     VAO1.bind()
 
     # --- Cube Vertex Data ---
-    CubeVBO = VBO(vertices)
+    CubeVBO = VBO(vertices=None,Static=False)
+    CubeVBO_ID=CubeVBO.ID
+
+    
     ebo = EBO(indices)
     ebo_ID=ebo.ID
+    ebo.bind()
 
     stride = 8 * 4
     VAO1.LinkVBO(CubeVBO, 0, 3, GL_FLOAT, stride, 0)     # pos
-    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color (unused)
+    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color 
     VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 24)    # texcoord
-
-    # --- Instance VBO ---
-    InstanceVBO = VBO(Static=False)
-    InstanceVBO_ID = InstanceVBO.ID
-    glBindBuffer(GL_ARRAY_BUFFER, InstanceVBO_ID)
-
-    # We don't upload instance_data here (world will upload every frame)
-    glBufferData(GL_ARRAY_BUFFER, 0, None, GL_DYNAMIC_DRAW)
-
-    # Attribute 3 = instance position vec3
-    glEnableVertexAttribArray(3)
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(0))
-    glVertexAttribDivisor(3, 1)
-
-    # Attribute 4 = block type float
-    glEnableVertexAttribArray(4)
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(12))
-    glVertexAttribDivisor(4, 1)
 
     VAO1.unbind()
         
@@ -282,7 +268,7 @@ def main():
     #Matrix setup
     ######################################################
 
-    camera=Camera(1600,800,Position=[2,0,2])
+    camera=Camera(1600,800,Position=[0,9,0])
 
     glUseProgram(ShaderProgram)
     # Helpers to get uniform locations TODO : understand what these do
@@ -393,6 +379,8 @@ def main():
         glUniformMatrix4fv(proj_loc,1,GL_FALSE,projection)
 
         MyFrustum.Extract_frustum_planes(projection,view)
+
+        VAO1.bind()
  
 
         # -----------------------
@@ -474,12 +462,11 @@ def main():
         VAO1.bind()
 
         #Call world generation func
-        MyWorld.DrawVisiChunks(MyFrustum,InstanceVBO_ID,ebo_ID)
+        MyWorld.DrawVisiChunks(MyFrustum,CubeVBO_ID,ebo_ID,VAO1.ID)
 
 
         VAO1.unbind()
         CubeVBO.unbind()
-        InstanceVBO.unbind()
 
 
         # Render ImGui on top

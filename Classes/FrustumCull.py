@@ -6,40 +6,42 @@ class FrustumCulling:
 
 
 
+    def Extract_frustum_planes(self, projection, view):
 
-    def Extract_frustum_planes(self,projection,view):
+        self.planes = []
 
-        self.viewPlaneMatrix = projection @ view
+        # Row-major, row-vectors → view first, then projection
+        m = view @ projection
 
+        # Extract planes (using ROWS, not columns)
         # Left
-        self.planes.append(self.viewPlaneMatrix[3] + self.viewPlaneMatrix[0])
+        self.planes.append(m[3] + m[0])
         # Right
-        self.planes.append(self.viewPlaneMatrix[3] - self.viewPlaneMatrix[0])
+        self.planes.append(m[3] - m[0])
         # Bottom
-        self.planes.append(self.viewPlaneMatrix[3] + self.viewPlaneMatrix[1])
+        self.planes.append(m[3] + m[1])
         # Top
-        self.planes.append(self.viewPlaneMatrix[3] - self.viewPlaneMatrix[1])
+        self.planes.append(m[3] - m[1])
         # Near
-        self.planes.append(self.viewPlaneMatrix[3] + self.viewPlaneMatrix[2])
+        self.planes.append(m[3] + m[2])
         # Far
-        self.planes.append(self.viewPlaneMatrix[3] - self.viewPlaneMatrix[2])
+        self.planes.append(m[3] - m[2])
 
-        Normalized=[]
+        # Normalize
+        for i in range(6):
+            n = np.linalg.norm(self.planes[i][:3])
+            if n > 0:
+                self.planes[i] = self.planes[i] / n
 
-        for p in self.planes:
-            n=p[:3]
-            l=np.linalg.norm(n)
-            Normalized.append(p/l)
-        
-        self.planes=Normalized
-        
-        
-
-        return self.planes 
-
+        return self.planes
 
     def aabb_visible(self, min_pos, max_pos):
-        # Now self.planes contains 6 correctly normalized planes from the current frame
+        #Now self.planes contains 6 correctly normalized planes from the current frame
+
+        if len(self.planes) != 6:
+            print("Critical error")
+            return True
+
         for plane in self.planes:
             A, B, C, D = plane  # (A, B, C) is the plane normal, D is the distance
 

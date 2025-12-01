@@ -3,7 +3,7 @@ from OpenGL.GL import *
 from Classes.FrustumCull import FrustumCulling 
 import numpy as np
 
-Chunk_Size=8
+Chunk_Size=4
 Voxel_Count=Chunk_Size**3
 
 @dataclass
@@ -24,6 +24,123 @@ class World:
     def __init__(self):
         self.WorldMap: dict[tuple,Chunk]={}
         self.VisibleCubePositions: list[tuple]=[]
+        self.FACE_DATA = {
+            # +X (Right) Face: Indices 16-19 in your main.py vertices array
+            # We only need the 4 vertices' data (32 floats) and 6 indices
+            'RIGHT': (
+                np.array([
+                    0.5, -0.5, 0.5,  1.0, 1.0, 0.0, 0.0, 0.0,
+                    0.5,  0.5, 0.5,  1.0, 0.4, 0.0, 0.0, 1.0,
+                    0.5,  0.5, -0.5, 1.0, 0.2, 1.0, 1.0, 1.0,
+                    0.5, -0.5, -0.5, 1.0, 0.3, 1.0, 1.0, 0.0,
+                ], dtype=np.float32),
+                np.array([0, 1, 2, 2, 3, 0], dtype=np.uint32) # Indices for these 4 vertices
+            ),
+            # -X (Left) Face: Indices 20-23
+            'LEFT': (
+                np.array([
+                    -0.5, -0.5, 0.5, 1.0, 0.2, 1.0, 1.0, 0.0,
+                    -0.5,  0.5, 0.5, 1.0, 0.4, 0.0, 1.0, 1.0,
+                    -0.5,  0.5, -0.5, 1.0, 1.0, 0.0, 0.0, 1.0,
+                    -0.5, -0.5, -0.5, 1.0, 0.3, 1.0, 0.0, 0.0,
+                ], dtype=np.float32),
+                np.array([0, 1, 2, 2, 3, 0], dtype=np.uint32)
+            ),
+            # +Y (Top) Face: Indices 8-11
+            'TOP': (
+                np.array([
+                    -0.5, 0.5, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0,
+                    0.5, 0.5, 0.5, 1.0, 0.2, 1.0, 1.0, 0.0,
+                    -0.5, 0.5, -0.5, 1.0, 0.4, 0.0, 0.0, 1.0,
+                    0.5, 0.5, -0.5, 1.0, 0.3, 1.0, 1.0, 1.0,
+                ], dtype=np.float32),
+                np.array([0, 2, 3, 0, 1, 3], dtype=np.uint32) # Corrected indices for top face geometry
+            ),
+            # -Y (Bottom) Face: Indices 12-15 (Note: Your main.py bottom indices are strange, using a correct template)
+            'BOTTOM': (
+                np.array([
+                    -0.5, -0.5, 0.5, 1.0, 1.0, 0.0, 0.0, 1.0,
+                    0.5, -0.5, -0.5, 1.0, 0.2, 1.0, 1.0, 1.0,
+                    -0.5, -0.5, 0.5, 1.0, 0.4, 0.0, 0.0, 0.0,
+                    0.5, -0.5, -0.5, 1.0, 0.3, 1.0, 0.0, 1.0,
+                ], dtype=np.float32),
+                np.array([0, 2, 1, 1, 3, 2], dtype=np.uint32)
+            ),
+            # +Z (Front) Face: Indices 0-3
+            'FRONT': (
+                np.array([
+                    -0.5, -0.5, 0.5, 0.5, 0.2, 0.0, 0.0, 0.0,
+                    -0.5, 0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0,
+                    0.5, -0.5, 0.5, 0.2, 0.3, 1.0, 1.0, 0.0,
+                    0.5, 0.5, 0.5, 1.0, 1.0, 0.0, 1.0, 1.0,
+                ], dtype=np.float32),
+                np.array([0, 1, 2, 2, 3, 1], dtype=np.uint32)
+            ),
+            # -Z (Back) Face: Indices 4-7
+            'BACK': (
+                np.array([
+                    -0.5, -0.5, -0.5, 1.0, 1.0, 0.0, 0.0, 0.0,
+                    -0.5, 0.5, -0.5, 1.0, 0.2, 1.0, 0.0, 1.0,
+                    0.5, 0.5, -0.5, 1.0, 0.4, 0.0, 1.0, 1.0,
+                    0.5, -0.5, -0.5, 1.0, 0.3, 1.0, 0.0, 1.0,
+                ], dtype=np.float32),
+                np.array([0, 1, 2, 2, 3, 0], dtype=np.uint32)
+            )
+        }
+
+        self.Stride=8
+
+    
+    def add_face_to_mesh(self,faceKey,wx,wy,wz,BlockType,vertex_data_list,index_data_list,vertex_count):
+        """
+        Calculates and appends the vertices and indices for one visible face.
+        
+        Args:
+            face_key (str): 'TOP', 'BOTTOM', 'FRONT', etc.
+            wx, wy, wz (float): World position of the voxel (min corner).
+            block_type (int): The BlockType ID to assign to the instance data.
+            vertex_data_list (list): The list to append vertex data to.
+            index_data_list (list): The list to append index data to.
+            vertex_count (int): The current total number of vertices in the mesh.
+        
+        Returns:
+            int: The new total number of indices added.
+        """
+        # 1. Get base vertex and index data for the face
+        face_vertices_flat, face_indices_rel = self.FACE_DATA[faceKey]
+        
+        # We have 4 vertices, 8 floats each (pos[3], color[3], tex[2])
+        face_vertices = face_vertices_flat.reshape((-1, self.Stride)).copy()
+        
+        # 2. Offset the positions
+        # The first 3 components are positions (x, y, z)
+        # We shift all 4 vertices by the voxel's world position (wx, wy, wz)
+        face_vertices[:, 0] += wx
+        face_vertices[:, 1] += wy
+        face_vertices[:, 2] += wz
+        
+        # NEW: Inject BlockType ID (1-4) into the R component (index 3)
+        # This corresponds to the 'color' attribute (Layout 1) in your VAO link.
+        face_vertices[:, 3] = BlockType  # R component (BlockType ID)
+        face_vertices[:, 4] = 0.0        # G component (set to 0)
+        face_vertices[:, 5] = 0.0        # B component (set to 0)
+
+
+
+
+        # 3. Append to main lists
+        # Vertices (flat)
+        vertex_data_list.append(face_vertices.flatten())
+        
+        # Indices (relative to the global vertex count)
+        # The 4 vertices we just added start at index 'vertex_count'
+        face_indices_abs = face_indices_rel + vertex_count 
+        index_data_list.append(face_indices_abs)
+        
+        # 4. Return new vertex count
+        return len(face_vertices)
+
+
     
     def is_solid_at_world_coords(self, wx, wy, wz):
         # 1. Determine the CHUNK containing the world coordinates
@@ -92,88 +209,123 @@ class World:
     def GetVisiChunks(self,frustum):
         visible=[]
         for pos,chunk in self.WorldMap.items():
-            worldPos=chunk.Position*chunk.Size
+            worldPos=chunk.Position * Chunk_Size
 
             mins=worldPos
-            maxs=worldPos+chunk.Size
+            maxs=worldPos+ np.array([Chunk_Size,Chunk_Size,Chunk_Size],dtype=np.float32)
 
             if frustum.aabb_visible(mins,maxs):
                 visible.append((pos,chunk))
         return visible
             
             
-    def DrawVisiChunks(self,frustum, instanceVBO_ID, EBO_ID):
-        visibleChunks=self.GetVisiChunks(frustum)
+    def DrawVisiChunks(self, frustum, CubeVBO_ID, EBO_ID, VAO_ID):
+        # We no longer use instanceVBO_ID and EBO_ID for the Instancing method.
+        # We need a new VBO and EBO for the merged mesh, or reuse the existing ones
+        # with different data. For now, we'll assume the mesh data goes into the VBO
+        # you originally defined for the cube shape, and the EBO you originally defined.
+        
+        visibleChunks = self.GetVisiChunks(frustum)
 
-        maxCubes=len(visibleChunks)*Voxel_Count
+        # ----------------------------------------------------
+        # 1. Data Structures for the Merged Mesh
+        # ----------------------------------------------------
+        
+        # Use Python lists to dynamically collect data (faster than growing numpy array)
+        total_vertex_data = [] 
+        total_index_data = []
+        vertex_count = 0
 
-        if maxCubes==0:
-            return
+        # The neighbor checking logic
+        def is_solid(cx, cy, cz):
+            # This is the full implementation of the helper function needed for culling
+            return self.is_solid_at_world_coords(cx, cy, cz)
 
-        tempPositions=np.zeros((maxCubes,3),dtype=np.float32)
-        tempBlockTypes=np.zeros(maxCubes,dtype=np.float32)
-
-
-        count=0
-        # ️ Collect positions and block types
+        # ----------------------------------------------------
+        # 2. Iterate and Cull Faces
+        # ----------------------------------------------------
         for key, chunk in visibleChunks:
-            chunk_pos_int= chunk.Position.astype(np.int32) 
+            # Chunk offset in world space
+            chunk_pos_int = chunk.Position.astype(np.int32) 
             chunk_offset = chunk_pos_int * Chunk_Size
-
+            
             for z in range(Chunk_Size):
                 for y in range(Chunk_Size):
                     for x in range(Chunk_Size):
-
-                        if voxel.BlockType==0 : continue
-
-                        #Global position of the voxel
-                        vx=chunk_offset[0]+x
-                        vy=chunk_offset[1]+y
-                        vz=chunk_offset[2]+z
-
-                        #--- Face Culling starts ---
-                        # We need the VBO data for a single face (6 indices, 4 vertices)
-                        # You will create a temporary array to hold the vertices/indices for the visible faces.
-
-                        # Check the Z+ face (Forward)
-                        if not self.is_solid_at_world_coords(vx, vy, vz + 1): 
-                            # Add vertices and indices for the Z+ (Forward) face to the instance data
-                            #self.add_face_to_mesh(Face.FRONT, vx, vy, vz, count)
-                            count += 1
-
-                        
                         index = x + y * Chunk_Size + z * Chunk_Size * Chunk_Size
                         voxel = chunk.Voxels[index]
+                        block_type = voxel.BlockType
 
-                        tempPositions[count,0]=chunk_offset[0]+x
-                        tempPositions[count,1]=chunk_offset[1]+y
-                        tempPositions[count,2]=chunk_offset[2]+z
+                        if block_type == 0: continue # Skip air blocks
 
-                        tempBlockTypes[count]=voxel.BlockType
+                        # World coordinates of the current voxel's minimum corner
+                        wx = chunk_offset[0] + x
+                        wy = chunk_offset[1] + y
+                        wz = chunk_offset[2] + z
+                        
+                        # Check all 6 faces for visibility
+                        
+                        # +X (Right)
+                        if not is_solid(wx + 1, wy, wz):
+                            face_vertices = self.add_face_to_mesh('RIGHT', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
+                        
+                        # -X (Left)
+                        if not is_solid(wx - 1, wy, wz):
+                            face_vertices = self.add_face_to_mesh('LEFT', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
 
-                        count+=1
+                        # +Y (Top)
+                        if not is_solid(wx, wy + 1, wz):
+                            face_vertices = self.add_face_to_mesh('TOP', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
 
-        self.VisibleCubePositions = tempPositions[:count]
-        blockTypes = tempBlockTypes[:count]
+                        # -Y (Bottom)
+                        if not is_solid(wx, wy - 1, wz):
+                            face_vertices = self.add_face_to_mesh('BOTTOM', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
 
-        #  Upload instance data to GPU (after loops)
-        if count>0:
-            instance_data = np.zeros((len(self.VisibleCubePositions), 4), dtype=np.float32)
-            instance_data[:, :3] = self.VisibleCubePositions
-            instance_data[:, 3] = blockTypes
+                        # +Z (Front)
+                        if not is_solid(wx, wy, wz + 1):
+                            face_vertices = self.add_face_to_mesh('FRONT', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
+                            
+                        # -Z (Back)
+                        if not is_solid(wx, wy, wz - 1):
+                            face_vertices = self.add_face_to_mesh('BACK', wx, wy, wz, block_type, total_vertex_data, total_index_data, vertex_count)
+                            vertex_count += face_vertices
 
-            glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_ID)
 
-            #optimization called orphaning the buffer
-            glBufferData(GL_ARRAY_BUFFER, instance_data.nbytes, None, GL_DYNAMIC_DRAW)
-            glBufferData(GL_ARRAY_BUFFER, instance_data.nbytes, instance_data, GL_DYNAMIC_DRAW)
+        # ----------------------------------------------------
+        # 3. Finalize Data and Upload to GPU
+        # ----------------------------------------------------
+        total_indices = len(total_index_data) * 6
+        
+        if len(total_index_data) > 0:
+            final_vertices = np.concatenate(total_vertex_data).astype(np.float32)
+            final_indices = np.concatenate(total_index_data).astype(np.uint32)
 
-            #  Draw instanced
+            total_indices=len(final_indices)
+
+            # --- A. BIND VAO (The Fix for flickering) ---
+            glBindVertexArray(VAO_ID)
+
+            # --- B. Update Vertex VBO (CubeVBO) ---
+            # NOTE: We assume 'instanceVBO_ID' is the ID of your CubeVBO (VBO for geometry)
+            glBindBuffer(GL_ARRAY_BUFFER,CubeVBO_ID) 
+            glBufferData(GL_ARRAY_BUFFER, final_vertices.nbytes, final_vertices, GL_DYNAMIC_DRAW) 
+
+            # --- C. Update Index EBO ---
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_ID)
-            glDrawElementsInstanced(
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, final_indices.nbytes, final_indices, GL_DYNAMIC_DRAW)
+
+            # --- D. Draw Merged Mesh ---
+            glDrawElements(
                 GL_TRIANGLES,
-                36,  # number of indices per cube
+                total_indices,  # Total number of indices to draw
                 GL_UNSIGNED_INT,
                 None,
-                len(self.VisibleCubePositions)
             )
+
+            # --- E. Clean State ---
+            glBindVertexArray(0)

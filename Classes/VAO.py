@@ -21,6 +21,7 @@ class VAO:
         )
         glEnableVertexAttribArray(layout)
         VBO.unbind()
+        self.unbind()
 
     def bind(self):
         glBindVertexArray(self.ID)
