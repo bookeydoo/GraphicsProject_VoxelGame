@@ -152,11 +152,12 @@ def load_texture(path):
 
     return textureID
 
-def load_texture_skybox(path,Faces):
-    # Create texture ID
-    textureID = glGenTextures(1)
-    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID)
+def load_texture_skybox(facePaths):
+    # Upload image to OpenGL
 
+    # Create texture ID
+    textureID = glGenTextures(i)
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID)
     # Texture wrapping options
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER,GL_LINEAR)
     glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MIN_FILTER, GL_LINEAR)
@@ -166,19 +167,21 @@ def load_texture_skybox(path,Faces):
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
 
-    # Load image
-    image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
-    img_data = image.convert("RGBA").tobytes()
-    width, height = image.size
+    for i,path in enumerate(facePaths):
 
-    # Upload image to OpenGL
-    for i in range(Faces):
+        # Load image
+        image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
+        img_data = image.convert("RGBA").tobytes()
+        width, height = image.size
+
+
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, GL_RGBA, width, height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, img_data)
 
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP)
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP)
+        glBindTexture(GL_TEXTURE_CUBE_MAP,0)
 
-    return textureID
+    return textureID 
 
 
 def ExitFunc():
@@ -226,13 +229,17 @@ def main():
     snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
     dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
 
-    skyboxText0=load_texture(TexturesDir+"/cubemap_0.png")
-    skyboxText1=load_texture(TexturesDir+"/cubemap_1.png")
-    skyboxText2=load_texture(TexturesDir+"/cubemap_2.png")
-    skyboxText3=load_texture(TexturesDir+"/cubemap_3.png")
-    skyboxText4=load_texture(TexturesDir+"/cubemap_4.png")
-    skyboxText5=load_texture(TexturesDir+"/cubemap_5.png")
+    skyboxText0=os.open(TexturesDir+"/cubemap_0.png")
+    skyboxText1=os.open(TexturesDir+"/cubemap_1.png")
+    skyboxText2=os.open(TexturesDir+"/cubemap_2.png")
+    skyboxText3=os.open(TexturesDir+"/cubemap_3.png")
+    skyboxText4=os.open(TexturesDir+"/cubemap_4.png")
+    skyboxText5=os.open(TexturesDir+"/cubemap_5.png")
     
+    skyboxFaces=[skyboxText0,skyboxText1,skyboxText2,skyboxText3,skyboxText4,skyboxText5]
+
+    Skybox=load_texture_skybox(skyboxFaces)
+
 
     #PERLIN NOISE TEXT
     PerlinNoise1=load_texture(TexturesDir+"/perlin_noise.png")
@@ -499,7 +506,13 @@ def main():
         glActiveTexture(GL_TEXTURE3)
         glBindTexture(GL_TEXTURE_2D,snowtext)
 
+        glActiveTexture(GL_TEXTURE4)
+        glBindTexture(GL_TEXTURE_CUBE_MAP,Skybox)
 
+        
+
+
+        
         
 
         
