@@ -18,7 +18,7 @@ void main() {
     vBlockType = aBlockType;
 
     //Scale the texture
-    vec2 scaledUV=(aInstancePos.xz)*0.1;
+    vec2 scaledUV=(aInstancePos.xz)*0.01;
 
     float noiseVal = texture(noiseTexture, scaledUV).r;
     float displacement;

@@ -18,4 +18,4 @@ class VBO:
         glBindBuffer(GL_ARRAY_BUFFER,0)
     
     def delete(self):
-        glDeleteVertexArrays(1,[self.ID])
+        glDeleteBuffers(1,[self.ID])

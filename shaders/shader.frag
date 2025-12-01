@@ -7,6 +7,6 @@ uniform sampler2D BlockTextures[4];
 
 void main() {
     int id = int(vBlockType);
-    vec4 tex = texture(BlockTextures[id], TexCoord);
+    vec4 tex = texture(BlockTextures[id+1], TexCoord);
     FragColor = tex;
 }

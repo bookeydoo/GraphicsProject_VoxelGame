@@ -12,6 +12,7 @@ from Classes.VBO import VBO
 from Classes.VAO import VAO
 from Classes.EBO import EBO 
 from Classes.Camera import Camera
+from Classes.FrustumCull import FrustumCulling 
 from Classes.WorldChunks import World 
 
 WORLD_FORWARD = pyrr.Vector3([0.0, 0.0, -1.0])  # Negative Z-axis is typically "forward"
@@ -193,6 +194,11 @@ def main():
     pygame.event.set_grab(True)
 
     glEnable(GL_DEPTH_TEST)
+
+    # glEnable(GL_CULL_FACE)
+    # glCullFace(GL_BACK)
+    # glFrontFace(GL_CCW)
+
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -301,6 +307,9 @@ def main():
     #Debug vars 
     ShowDevWindow=True
 
+    #Init FRUSTUM
+    MyFrustum=FrustumCulling()
+
     #INIT WORLD
     MyWorld=World()
     MyWorld.InitWorld(np.array(camera.Position,dtype=np.float32))
@@ -378,9 +387,12 @@ def main():
         camera.update_vectors()
     
 
-        projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=500.0)
+        projection,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=500.0)
+
         glUniformMatrix4fv(view_loc,1,GL_FALSE,view)
         glUniformMatrix4fv(proj_loc,1,GL_FALSE,projection)
+
+        MyFrustum.Extract_frustum_planes(projection,view)
  
 
         # -----------------------
@@ -432,9 +444,6 @@ def main():
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         #Cube Textures
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D,yeezytext)
-
         glActiveTexture(GL_TEXTURE1)
         glBindTexture(GL_TEXTURE_2D,dirttext)
 
@@ -443,6 +452,9 @@ def main():
 
         glActiveTexture(GL_TEXTURE3)
         glBindTexture(GL_TEXTURE_2D,snowtext)
+
+        glActiveTexture(GL_TEXTURE4)
+        glBindTexture(GL_TEXTURE_2D,yeezytext)
 
 
         
@@ -462,7 +474,7 @@ def main():
         VAO1.bind()
 
         #Call world generation func
-        MyWorld.DrawVisiChunks(InstanceVBO_ID,ebo_ID)
+        MyWorld.DrawVisiChunks(MyFrustum,InstanceVBO_ID,ebo_ID)
 
 
         VAO1.unbind()
