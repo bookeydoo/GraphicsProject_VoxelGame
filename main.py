@@ -253,8 +253,9 @@ def main():
 
     stride = 8 * 4
     VAO1.LinkVBO(CubeVBO, 0, 3, GL_FLOAT, stride, 0)     # pos
-    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color 
-    VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 24)    # texcoord
+    VAO1.LinkVBO(CubeVBO, 1, 2, GL_FLOAT, stride, 12)    # texcoord 
+    VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 20)    # voxelcenter
+    VAO1.LinkVBO(CubeVBO, 3, 1, GL_FLOAT, stride, 28)    # voxelcenter
 
     VAO1.unbind()
         
@@ -432,16 +433,16 @@ def main():
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         #Cube Textures
-        glActiveTexture(GL_TEXTURE1)
+        glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D,dirttext)
 
-        glActiveTexture(GL_TEXTURE2)
+        glActiveTexture(GL_TEXTURE1)
         glBindTexture(GL_TEXTURE_2D,sandtext)
 
-        glActiveTexture(GL_TEXTURE3)
+        glActiveTexture(GL_TEXTURE2)
         glBindTexture(GL_TEXTURE_2D,snowtext)
 
-        glActiveTexture(GL_TEXTURE4)
+        glActiveTexture(GL_TEXTURE3)
         glBindTexture(GL_TEXTURE_2D,yeezytext)
 
 
