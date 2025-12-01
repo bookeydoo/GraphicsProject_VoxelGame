@@ -2,7 +2,7 @@ from dataclasses import dataclass,field
 from OpenGL.GL import *
 import numpy as np
 
-Chunk_Size=8
+Chunk_Size=4
 Voxel_Count=Chunk_Size**3
 
 @dataclass

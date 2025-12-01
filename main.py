@@ -4,6 +4,7 @@ from PIL import Image
 import imgui
 import pygame
 import numpy as np
+import time
 from imgui.integrations.opengl import ProgrammablePipelineRenderer
 from pygame.locals import *
 from OpenGL.GL import *
@@ -92,19 +93,7 @@ indices =np.array ([
 	22, 23, 20
 ],dtype=np.uint32)
 
-# Define edges (lines between vertices)
-#edges = np.array([
-#    (0,1), (1,2), (2,3), (3,0),
-#    (4,5), (5,6), (6,7), (7,4),
-#    (0,4), (1,5), (2,6), (3,7)
-#],dtype=np.float32)
 
-# Define faces (polygons)
-#surfaces = np.array([
-#    (0,1,2,3), (4,5,6,7), (0,1,5,4),
-#    (2,3,7,6), (1,2,6,5), (0,3,7,4)
-#],dtype=np.float32)
- 
 
 def InitOpengl():
     # Request OpenGL 3.3 compatibility context (your imgui/Pygame renderer expects this)
@@ -163,6 +152,35 @@ def load_texture(path):
 
     return textureID
 
+def load_texture_skybox(path,Faces):
+    # Create texture ID
+    textureID = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID)
+
+    # Texture wrapping options
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+
+    # Texture filtering options
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
+
+    # Load image
+    image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
+    img_data = image.convert("RGBA").tobytes()
+    width, height = image.size
+
+    # Upload image to OpenGL
+    for i in range(Faces):
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, GL_RGBA, width, height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, img_data)
+
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP)
+
+    return textureID
+
+
 def ExitFunc():
     pygame.event.set_grab(False)
     pygame.quit()
@@ -208,6 +226,14 @@ def main():
     snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
     dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
 
+    skyboxText0=load_texture(TexturesDir+"/cubemap_0.png")
+    skyboxText1=load_texture(TexturesDir+"/cubemap_1.png")
+    skyboxText2=load_texture(TexturesDir+"/cubemap_2.png")
+    skyboxText3=load_texture(TexturesDir+"/cubemap_3.png")
+    skyboxText4=load_texture(TexturesDir+"/cubemap_4.png")
+    skyboxText5=load_texture(TexturesDir+"/cubemap_5.png")
+    
+
     #PERLIN NOISE TEXT
     PerlinNoise1=load_texture(TexturesDir+"/perlin_noise.png")
 
@@ -229,9 +255,14 @@ def main():
     #######################################################
 
     ShaderProgram=CreateShaderProgram(vertexSrc,fragmentSrc)
+
     ######################################################
     # VBO and VAO setup
     ######################################################
+
+    #####################
+    ##NORMAL CUBES
+    #####################
 
     VAO1 = VAO()
     VAO1.bind()
@@ -265,7 +296,18 @@ def main():
     glVertexAttribDivisor(4, 1)
 
     VAO1.unbind()
-        
+
+    #####################
+    ##NORMAL CUBES
+    #####################
+
+    skyBoxVAO=VAO()
+    skyBoxVAO.bind()
+
+    #--Vertex Data
+    skyBoxVBO=VBO(vertices)
+    ebo=ebo(indices)
+    ebo_ID=ebo.ID
 
 
     # Setup ImGui
@@ -297,6 +339,8 @@ def main():
     Rotated=True 
 
     #Timers 
+    PrevTime=0
+    timeCounter=0
 
     #Debug vars 
     ShowDevWindow=True
@@ -369,6 +413,14 @@ def main():
             
         #DEBUGGING
         print("Pos:",camera.Position)
+        CrntTime=time.time()
+        timeDiff=CrntTime-PrevTime
+        timeCounter+=1
+        if(timeDiff>= 1.0/30.0):
+            FPS=(1.0/timeDiff) * timeCounter
+            PrevTime=CrntTime
+            timeCounter=0
+        
 
 
         #Compute mouse delta
@@ -403,6 +455,9 @@ def main():
             pos_x=camera.Position[0]
             pos_y=camera.Position[1]
             pos_z=camera.Position[2]
+
+            imgui.text("FPS")
+            imgui.text(f"{FPS}")
 
             imgui.text("--Position--")            
             imgui.text(f"x pos:{pos_x:.2f}")
@@ -444,6 +499,8 @@ def main():
         glActiveTexture(GL_TEXTURE3)
         glBindTexture(GL_TEXTURE_2D,snowtext)
 
+
+        
 
         
         #Perlin Noise Text
