@@ -425,6 +425,12 @@ def main():
 
     while True:
 
+       #Compute mouse delta
+        mouse_dx,mouse_dy=pygame.mouse.get_rel() 
+        camera.inputs(mouse_dx,mouse_dy)
+        
+        camera.update_vectors()
+
         # Handle events
         for event in pygame.event.get():
 
@@ -435,6 +441,12 @@ def main():
                 glViewport(0,0,event.w,event.h)
                 projection = pyrr.matrix44.create_perspective_projection(
                     45.0, event.w/event.h, 0.1, 100.0).astype(np.float32)
+            
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                Hit_pos,placePos= MyWorld.GetTargetVoxel(ray_origin=camera.Position,ray_direction=camera.Orientation,max_distance=10.0 )
+                if placePos is not None:
+                    MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32))
+                    print(f"Block added at ",placePos,Hit_pos)
 
             if event.type == pygame.KEYDOWN:
                 if event.key ==pygame.K_F12:
@@ -453,6 +465,9 @@ def main():
                         Rotated = True
                     else:
                         Rotated = False
+        
+
+      
         
         keys=pygame.key.get_pressed()
         if keys[pygame.K_w]:
@@ -473,10 +488,12 @@ def main():
         if keys[pygame.K_LCTRL]:
             camera.Position -= camera.Up * camera.speed 
 
+            
 
+
+ 
             
         #DEBUGGING
-        print("Pos:",camera.Position)
         CrntTime=time.time()
         timeDiff=CrntTime-PrevTime
         timeCounter+=1
@@ -486,13 +503,7 @@ def main():
             timeCounter=0
         
 
-
-        #Compute mouse delta
-        mouse_dx,mouse_dy=pygame.mouse.get_rel() 
-        camera.inputs(mouse_dx,mouse_dy)
-
-        camera.update_vectors()
-    
+   
 
         glUseProgram(ShaderProgram)
         projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=500.0)
