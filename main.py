@@ -444,9 +444,21 @@ def main():
             
             if event.type == pygame.MOUSEBUTTONDOWN:
                 Hit_pos,placePos= MyWorld.GetTargetVoxel(ray_origin=camera.Position,ray_direction=camera.Orientation,max_distance=10.0 )
-                if placePos is not None:
-                    MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32))
-                    print(f"Block added at ",placePos,Hit_pos)
+                if event.button == 1:
+                    if placePos is not None:
+                        MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32))
+                        print(f"CAMERA DEBUG:")
+                        print(f"  Position: {camera.Position}")
+                        print(f"  Orientation: {camera.Orientation}")
+                        print(f"  Yaw: {camera.yaw:.2f}°, Pitch: {camera.pitch:.2f}°")
+                        print(f"  Right vector: {camera.Right}")
+                        print(f"Block added at ",placePos,Hit_pos)
+                        look_at_5 = camera.Position + camera.Orientation * 5.0
+                        print(f"looking at 5 units:{look_at_5}")
+                elif event.button == 3:
+                   if Hit_pos is not None:
+                       MyWorld.RemoveVoxel(np.array(Hit_pos,dtype=np.float32)) 
+                       print("block removed ?")
 
             if event.type == pygame.KEYDOWN:
                 if event.key ==pygame.K_F12:

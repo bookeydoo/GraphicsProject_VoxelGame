@@ -1,65 +1,69 @@
-from dataclasses import dataclass,field
+from dataclasses import dataclass, field
 from OpenGL.GL import *
 import numpy as np
 import math
 
-Chunk_Size=4
-Voxel_Count=Chunk_Size**3
+Chunk_Size = 2
+Voxel_Count = Chunk_Size**3
 
 @dataclass
 class Voxel:
-    BlockType: np.uint32=np.uint32(0)
-
+    BlockType: np.uint32 = np.uint32(0)
 
 @dataclass
 class Chunk:
-    Position:  np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
+    Position: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
     Size: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
     Voxels: np.ndarray = field(default_factory=lambda: np.zeros(Voxel_Count, dtype=np.uint32))
 
 class World:
-
-	#std::unordered_map<glm::vec3, Chunk*> worldMap;
-	#std::vector<glm::vec3> visibleCubePositions;
     def __init__(self):
-        self.WorldMap: dict[tuple,Chunk]={}
-        self.VisibleCubePositions: list[tuple]=[]
-        self.BlockTypes=[]
+        self.WorldMap: dict[tuple, Chunk] = {}
+        self.VisibleCubePositions: list[tuple] = []
+        self.BlockTypes = []
       
-    def InitWorld(self,PlayerPos):
-        radius = 4
+    def InitWorld(self, PlayerPos):
+        radius = 2
+        y_min = -1
+        y_max = 3
 
-        for cx in range(-radius,radius+1):
-            for cz in range(-radius,radius+1):
+        for cx in range(-radius, radius+1):
+            for cy in range(y_min, y_max):
+                for cz in range(-radius, radius+1):
+                    self._CreateChunk(cx, cy, cz)
+    
+    def _CreateChunk(self, cx, cy, cz):
+        """Internal method to create a chunk at given coordinates"""
+        chunk = Chunk()
+        chunk.Position = np.array([cx, cy, cz], dtype=np.float32)
+        chunk.Size = np.array([Chunk_Size]*3, dtype=np.float32)
 
-                #allocate new chunk like in c++
-                chunk = Chunk()
+        # Initialize voxels based on position (your perlin noise logic goes here)
+        for i in range(Voxel_Count):
+            if cz < 0:
+                chunk.Voxels[i] = 1
+            elif cz > 0:
+                chunk.Voxels[i] = 2
+            else:
+                chunk.Voxels[i] = 3
 
-                # integer chunk coordinates
-                chunk.Position = np.array([cx, 0, cz], dtype=np.float32)
-
-                # all chunks are the same size
-                chunk.Size = np.array([Chunk_Size]*3, dtype=np.float32)
-
-                for i in range(Voxel_Count):
-                    if cz<0:
-                        chunk.Voxels[i]=1
-                    elif cz>0:
-                        chunk.Voxels[i]=2
-                    else:
-                        chunk.Voxels[i]=3
-
-
-
-                #Insert into Hashmap(dict)
-                key=(cx,0,cz)
-                self.WorldMap[key]=chunk
+        key = (cx, cy, cz)
+        self.WorldMap[key] = chunk
+        print(f"Created new chunk at {key}")
+        return chunk
+    
+    def GetOrCreateChunk(self, chunk_coords):
+        """Get a chunk, creating it if it doesn't exist"""
+        if chunk_coords not in self.WorldMap:
+            cx, cy, cz = chunk_coords
+            return self._CreateChunk(cx, cy, cz)
+        return self.WorldMap[chunk_coords]
             
     def DrawVisiChunks(self, instanceVBO_ID, EBO_ID):
         self.VisibleCubePositions.clear()
         self.BlockTypes.clear()
 
-        #  Collect positions and block types
+        # Collect positions and block types
         for key, chunk in self.WorldMap.items():
             chunk_offset = chunk.Position * Chunk_Size
 
@@ -69,206 +73,169 @@ class World:
                         index = x + y * Chunk_Size + z * Chunk_Size * Chunk_Size
                         voxel = chunk.Voxels[index]
 
+                        if voxel == 0:
+                            continue
+
                         local_pos = np.array([x, y, z], dtype=np.float32)
                         world_pos = chunk_offset + local_pos
 
                         self.VisibleCubePositions.append(world_pos)
                         self.BlockTypes.append(chunk.Voxels[index])
 
-        # Upload instance data to GPU (after loops)
+        print(f"Rendering {len(self.VisibleCubePositions)} blocks in {len(self.WorldMap)} chunks")
+
+        # Upload instance data to GPU
         if self.VisibleCubePositions:
             instance_data = np.zeros((len(self.VisibleCubePositions), 4), dtype=np.float32)
             instance_data[:, :3] = self.VisibleCubePositions
-            instance_data[:, 3] = np.array(self.BlockTypes,dtype=np.float32) 
+            instance_data[:, 3] = np.array(self.BlockTypes, dtype=np.float32) 
 
             glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_ID)
             glBufferData(GL_ARRAY_BUFFER, instance_data.nbytes, instance_data, GL_DYNAMIC_DRAW)
 
-            #  Draw instanced
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_ID)
             glDrawElementsInstanced(
                 GL_TRIANGLES,
-                36,  # number of indices per cube
+                36,
                 GL_UNSIGNED_INT,
                 None,
                 len(self.VisibleCubePositions)
             )
     
-    def DrawVoxel(self,worldPos:np.ndarray):
-       # Compute integer world coordinates (e.g., floor(2.5) -> 2, floor(-1.5) -> -2)
+    def DrawVoxel(self, worldPos: np.ndarray):
+        """Place a block at world position, creating chunks as needed"""
+        worldPos=worldPos+0.5
         wx, wy, wz = map(int, np.floor(worldPos))
+        
+        print(f"\n=== DrawVoxel called ===")
+        print(f"World position: ({wx}, {wy}, {wz})")
 
-        # 1. Compute chunk coordinates (correctly handles negative floor division)
+        # Compute chunk coordinates
+        cx, cy, cz = wx // Chunk_Size, wy // Chunk_Size, wz // Chunk_Size
+        chunk_coords = (cx, cy, cz)
+        print(f"Chunk coords: {chunk_coords}")
+
+        # Get or create the chunk
+        chunk = self.GetOrCreateChunk(chunk_coords)
+
+        # Compute local voxel coordinates
+        lx = wx % Chunk_Size
+        ly = wy % Chunk_Size
+        lz = wz % Chunk_Size
+        print(f"Local coords: ({lx}, {ly}, {lz})")
+
+        # Compute 1D voxel index
+        voxel_index = lx + ly * Chunk_Size + lz * Chunk_Size * Chunk_Size
+        print(f"Voxel index: {voxel_index}")
+
+        if not (0 <= voxel_index < Voxel_Count):
+            print(f"❌ Index {voxel_index} out of bounds!")
+            return
+
+        print(f"Current voxel value: {chunk.Voxels[voxel_index]}")
+        chunk.Voxels[voxel_index] = 1
+        print(f"After setting: {chunk.Voxels[voxel_index]}")
+        print(f"✓ Block placed successfully!")
+        print("======================\n")
+
+    def RemoveVoxel(self, worldPos: np.ndarray):
+        """Remove a block at world position"""
+        wx, wy, wz = map(int, np.floor(worldPos))
+        
         cx, cy, cz = wx // Chunk_Size, wy // Chunk_Size, wz // Chunk_Size
         chunk_coords = (cx, cy, cz)
 
         if chunk_coords not in self.WorldMap:
-            # If the chunk isn't loaded, we can't place a block
-            # For debugging, you might print a message here
             return
 
         chunk = self.WorldMap[chunk_coords]
 
-        # 2. Compute local voxel coordinates (0 to Chunk_Size - 1)
-        # This is the coordinate relative to the chunk's origin (cx*Chunk_Size, cy*Chunk_Size, cz*Chunk_Size)
-        # This formulation avoids potential negative index issues from the raw modulo operator in some contexts.
-        lx = wx - (cx * Chunk_Size)
-        ly = wy - (cy * Chunk_Size)
-        lz = wz - (cz * Chunk_Size)
+        lx = wx % Chunk_Size
+        ly = wy % Chunk_Size
+        lz = wz % Chunk_Size
 
-        # 3. Compute the 1D voxel index
         voxel_index = lx + ly * Chunk_Size + lz * Chunk_Size * Chunk_Size
 
-        # Safety check:
-        if not (0 <= voxel_index < Voxel_Count):
-             print(f"Error: Voxel Index {voxel_index} out of bounds for world pos ({wx}, {wy}, {wz})")
-             return
-
-        # 4. Set the voxel
-        chunk.Voxels[voxel_index] = 1
-
-        
-
-
-
+        if 0 <= voxel_index < Voxel_Count:
+            chunk.Voxels[voxel_index] = 0
+            print(f"Block removed at ({wx}, {wy}, {wz})")
 
     def GetTargetVoxel(self, ray_origin: np.ndarray, ray_direction: np.ndarray, max_distance: float = 10.0):
         """
-        Performs Voxel Raycasting (DDA) to find the targeted block and placement position.
-
-        Args:
-            ray_origin: The world position of the camera (e.g., player position).
-            ray_direction: The normalized direction vector the player is looking.
-            max_distance: The maximum reach distance for the ray.
-
-        Returns:
-            A tuple: ((hit_x, hit_y, hit_z), (place_x, place_y, place_z))
-            Returns (None, None) if no block is hit within max_distance.
+        Voxel raycasting using DDA to find block hit and placement position.
         """
-        
-        # Ensure direction is normalized (important for DDA logic)
         ray_direction = ray_direction / np.linalg.norm(ray_direction)
 
-        # 1. Initial Voxel Coordinates
-        # Start at the integer coordinates of the origin
-        step_x = math.copysign(1, ray_direction[0])
-        step_y = math.copysign(1, ray_direction[1])
-        step_z = math.copysign(1, ray_direction[2])
+        x, y, z = map(int, np.floor(ray_origin))
         
-        # 2. Initial Grid Position
-        # 'map_pos' tracks the integer coordinates of the current voxel being checked
-        map_x = int(math.floor(ray_origin[0]))
-        map_y = int(math.floor(ray_origin[1]))
-        map_z = int(math.floor(ray_origin[2]))
+        print(f"\n=== GetTargetVoxel called ===")
+        print(f"Ray origin: {ray_origin}")
+        print(f"Starting voxel: ({x}, {y}, {z})")
 
-        # 3. Ray Parameters and Deltas
-        # 'tDelta' is the distance to travel along the ray to cross one unit in X/Y/Z.
-        # It is calculated as 1 / |DirectionComponent|.
-        tDelta_x = float('inf') if ray_direction[0] == 0 else abs(1.0 / ray_direction[0])
-        tDelta_y = float('inf') if ray_direction[1] == 0 else abs(1.0 / ray_direction[1])
-        tDelta_z = float('inf') if ray_direction[2] == 0 else abs(1.0 / ray_direction[2])
+        step_x = int(np.sign(ray_direction[0])) if ray_direction[0] != 0 else 0
+        step_y = int(np.sign(ray_direction[1])) if ray_direction[1] != 0 else 0
+        step_z = int(np.sign(ray_direction[2])) if ray_direction[2] != 0 else 0
 
-        # 4. Initial Ray Boundary Distances (tMax)
-        # 'tMax' is the distance along the ray to the *first* voxel boundary in each direction.
-        # 'fract' is the fractional part of the origin coordinate
-        
-        # Calculate initial tMax for X
-        if ray_direction[0] < 0:
-            tMax_x = (ray_origin[0] - map_x) * tDelta_x
-        else:
-            tMax_x = (map_x + 1.0 - ray_origin[0]) * tDelta_x
-        
-        # Calculate initial tMax for Y
-        if ray_direction[1] < 0:
-            tMax_y = (ray_origin[1] - map_y) * tDelta_y
-        else:
-            tMax_y = (map_y + 1.0 - ray_origin[1]) * tDelta_y
+        tMax_x = ((x + (step_x > 0)) - ray_origin[0]) / ray_direction[0] if ray_direction[0] != 0 else float('inf')
+        tMax_y = ((y + (step_y > 0)) - ray_origin[1]) / ray_direction[1] if ray_direction[1] != 0 else float('inf')
+        tMax_z = ((z + (step_z > 0)) - ray_origin[2]) / ray_direction[2] if ray_direction[2] != 0 else float('inf')
 
-        # Calculate initial tMax for Z
-        if ray_direction[2] < 0:
-            tMax_z = (ray_origin[2] - map_z) * tDelta_z
-        else:
-            tMax_z = (map_z + 1.0 - ray_origin[2]) * tDelta_z
+        tDelta_x = abs(1 / ray_direction[0]) if ray_direction[0] != 0 else float('inf')
+        tDelta_y = abs(1 / ray_direction[1]) if ray_direction[1] != 0 else float('inf')
+        tDelta_z = abs(1 / ray_direction[2]) if ray_direction[2] != 0 else float('inf')
 
-        # The current distance traveled along the ray
-        current_t = 0.0
+        distance_traveled = 0.0
+        last_empty = (x, y, z)
+        steps = 0
 
-        # 5. Iterative Stepping (DDA Loop)
-        while current_t < max_distance:
-            # Determine the next boundary the ray will cross (minimum tMax)
-            if tMax_x < tMax_y:
-                if tMax_x < tMax_z:
-                    # Step in X direction
-                    current_t = tMax_x
-                    tMax_x += tDelta_x
-                    
-                    # Update map position and hit normal
-                    prev_x = map_x
-                    map_x += int(step_x)
-                    
-                    # The normal points OUT of the empty block, so the placement 
-                    # vector is the step taken to get to the new block.
-                    # However, for the HIT block, the normal points away from the camera.
-                    normal_x = -step_x  # e.g., if step_x is 1, normal is -1 (hit west face)
-                    normal_y, normal_z = 0, 0
-                    
-                else:
-                    # Step in Z direction
-                    current_t = tMax_z
-                    tMax_z += tDelta_z
-
-                    prev_z = map_z
-                    map_z += int(step_z)
-
-                    normal_x, normal_y = 0, 0
-                    normal_z = -step_z
-                    
-            else: # tMax_y < tMax_x
-                if tMax_y < tMax_z:
-                    # Step in Y direction
-                    current_t = tMax_y
-                    tMax_y += tDelta_y
-
-                    prev_y = map_y
-                    map_y += int(step_y)
-
-                    normal_x, normal_z = 0, 0
-                    normal_y = -step_y
-                    
-                else:
-                    # Step in Z direction (or Y if tMax_y == tMax_z)
-                    current_t = tMax_z
-                    tMax_z += tDelta_z
-                    
-                    prev_z = map_z
-                    map_z += int(step_z)
-
-                    normal_x, normal_y = 0, 0
-                    normal_z = -step_z
-                    
-            # 6. Check for Block Hit
-            # Attempt to get the block type at the current map position (map_x, map_y, map_z)
+        while distance_traveled <= max_distance:
+            steps += 1
             
-            chunk_key = (map_x // Chunk_Size, map_y // Chunk_Size, map_z // Chunk_Size)
+            # Check if current voxel contains a block
+            chunk_key = (x // Chunk_Size, y // Chunk_Size, z // Chunk_Size)
             
+            # Only check chunks that exist (don't create new ones during raycast)
             if chunk_key in self.WorldMap:
                 chunk = self.WorldMap[chunk_key]
+                lx = x - chunk_key[0] * Chunk_Size
+                ly = y - chunk_key[1] * Chunk_Size
+                lz = z - chunk_key[2] * Chunk_Size
+                voxel_index = lx + ly * Chunk_Size + lz * Chunk_Size * Chunk_Size
                 
-                local_x = map_x % Chunk_Size
-                local_y = map_y % Chunk_Size
-                local_z = map_z % Chunk_Size
-                voxel_index = local_x + local_y * Chunk_Size + local_z * Chunk_Size * Chunk_Size
-                
-                block_type = chunk.Voxels[voxel_index]
-                
-                if block_type != 0:
-                    # Block Hit!
-                    hit_pos = (map_x, map_y, map_z)
+                if 0 <= voxel_index < Voxel_Count:
+                    voxel_value = chunk.Voxels[voxel_index]
                     
-                    # Placement position is the hit position plus the normal vector,
-                    # which points OUT of the hit face and into the adjacent empty space.
-                    place_pos = (map_x + normal_x, map_y + normal_y, map_z + normal_z)
-                    
-                    return hit_pos, place_pos
-                    
-        return None, None
+                    if voxel_value != 0:
+                        hit_pos = (x, y, z)
+                        place_pos = last_empty
+                        print(f"✓ HIT at step {steps}! Block at {hit_pos}, place at {place_pos}")
+                        print("==============================\n")
+                        return hit_pos, place_pos
+
+            # Save current position before stepping
+            last_empty = (x, y, z)
+
+            # Step to next voxel
+            if tMax_x < tMax_y:
+                if tMax_x < tMax_z:
+                    x += step_x
+                    distance_traveled = tMax_x
+                    tMax_x += tDelta_x
+                else:
+                    z += step_z
+                    distance_traveled = tMax_z
+                    tMax_z += tDelta_z
+            else:
+                if tMax_y < tMax_z:
+                    y += step_y
+                    distance_traveled = tMax_y
+                    tMax_y += tDelta_y
+                else:
+                    z += step_z
+                    distance_traveled = tMax_z
+                    tMax_z += tDelta_z
+
+        print(f"No hit after {steps} steps - returning last position for mid-air placement")
+        print("==============================\n")
+        # Return the last empty position for mid-air block placement
+        return None, last_empty

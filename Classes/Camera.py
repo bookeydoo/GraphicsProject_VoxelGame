@@ -11,7 +11,7 @@ class Camera:
         self.Up = np.array([0.0, 1.0, 0.0],dtype=np.float32)
         
         # FPS camera angles
-        self.yaw = -180.0     # looking forward (-Z)
+        self.yaw = -90.0     # looking forward (-Z)
         self.pitch = 0.0
         
         self.speed = 0.20

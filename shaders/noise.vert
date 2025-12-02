@@ -26,9 +26,9 @@ void main() {
     else if (noiseVal > 0.3) displacement = noiseVal * heightScale;
     else displacement = noiseVal * heightScale * 0.1;
 
-    vec3 worldPos = aPos + aInstancePos;
-    worldPos.y += displacement*5.0;
+    vec3 worldPos = aPos + aInstancePos ;
+    // worldPos.y += displacement*5.0;
 
 
-    gl_Position = projection * view * model * vec4(worldPos, 1.0);
+    gl_Position = projection * view  * vec4(worldPos, 1.0);
 }
