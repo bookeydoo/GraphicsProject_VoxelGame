@@ -25,6 +25,52 @@ WORLD_UP = pyrr.Vector3([0.0, 1.0, 0.0])         # Positive Y-axis is "up"
         ###Defining the voxel shape###
 ####################################################################################
 
+##SKYBOX vertices
+skybox_vertices = np.array([
+    -1.0,  1.0, -1.0,
+    -1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+     1.0,  1.0, -1.0,
+    -1.0,  1.0, -1.0,
+
+    -1.0, -1.0,  1.0,
+    -1.0, -1.0, -1.0,
+    -1.0,  1.0, -1.0,
+    -1.0,  1.0, -1.0,
+    -1.0,  1.0,  1.0,
+    -1.0, -1.0,  1.0,
+
+     1.0, -1.0, -1.0,
+     1.0, -1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0, -1.0,
+     1.0, -1.0, -1.0,
+
+    -1.0, -1.0,  1.0,
+    -1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+     1.0, -1.0,  1.0,
+    -1.0, -1.0,  1.0,
+
+    -1.0,  1.0, -1.0,
+     1.0,  1.0, -1.0,
+     1.0,  1.0,  1.0,
+     1.0,  1.0,  1.0,
+    -1.0,  1.0,  1.0,
+    -1.0,  1.0, -1.0,
+
+    -1.0, -1.0, -1.0,
+    -1.0, -1.0,  1.0,
+     1.0, -1.0, -1.0,
+     1.0, -1.0, -1.0,
+    -1.0, -1.0,  1.0,
+     1.0, -1.0,  1.0,
+], dtype=np.float32)
+
+
 # Define vertices (corners)
 vertices = np.array([
     
@@ -156,7 +202,7 @@ def load_texture_skybox(facePaths):
     # Upload image to OpenGL
 
     # Create texture ID
-    textureID = glGenTextures(i)
+    textureID = glGenTextures(1)
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID)
     # Texture wrapping options
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER,GL_LINEAR)
@@ -178,8 +224,8 @@ def load_texture_skybox(facePaths):
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, GL_RGBA, width, height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, img_data)
 
-        glGenerateMipmap(GL_TEXTURE_CUBE_MAP)
-        glBindTexture(GL_TEXTURE_CUBE_MAP,0)
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP)
+    glBindTexture(GL_TEXTURE_CUBE_MAP,0)
 
     return textureID 
 
@@ -229,12 +275,12 @@ def main():
     snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
     dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
 
-    skyboxText0=os.open(TexturesDir+"/cubemap_0.png")
-    skyboxText1=os.open(TexturesDir+"/cubemap_1.png")
-    skyboxText2=os.open(TexturesDir+"/cubemap_2.png")
-    skyboxText3=os.open(TexturesDir+"/cubemap_3.png")
-    skyboxText4=os.open(TexturesDir+"/cubemap_4.png")
-    skyboxText5=os.open(TexturesDir+"/cubemap_5.png")
+    skyboxText0=TexturesDir+"/cubemap_1.png"
+    skyboxText1=TexturesDir+"/cubemap_1.png"
+    skyboxText2=TexturesDir+"/cubemap_2.png"
+    skyboxText3=TexturesDir+"/cubemap_3.png"
+    skyboxText4=TexturesDir+"/cubemap_4.png"
+    skyboxText5=TexturesDir+"/cubemap_5.png"
     
     skyboxFaces=[skyboxText0,skyboxText1,skyboxText2,skyboxText3,skyboxText4,skyboxText5]
 
@@ -250,18 +296,27 @@ def main():
 
     vertexPath=os.path.join(ShaderDir,"noise.vert")
     fragPath=os.path.join(ShaderDir,"shader.frag")
+    skyboxVertPath=os.path.join(ShaderDir,"skybox.vert")
+    skyboxfragPath=os.path.join(ShaderDir,"skybox.frag")
 
     with open(vertexPath, 'r') as f:
         vertexSrc= f.read()
 
     with open(fragPath, 'r') as f:
         fragmentSrc= f.read()
+
+    with open(skyboxVertPath, 'r') as f:
+        skyboxVertsrc= f.read()
+
+    with open(skyboxfragPath, 'r') as f:
+        skyboxFragsrc= f.read()
     
     ######################################################
     #Create Shader
     #######################################################
 
     ShaderProgram=CreateShaderProgram(vertexSrc,fragmentSrc)
+    SkyboxShader=CreateShaderProgram(skyboxVertsrc,skyboxFragsrc)
 
     ######################################################
     # VBO and VAO setup
@@ -312,9 +367,10 @@ def main():
     skyBoxVAO.bind()
 
     #--Vertex Data
-    skyBoxVBO=VBO(vertices)
-    ebo=ebo(indices)
-    ebo_ID=ebo.ID
+    skyBoxVBO=VBO(skybox_vertices)
+
+    skyBoxVAO.LinkVBO(skyBoxVBO,0,3,GL_FLOAT,3*4,0)
+
 
 
     # Setup ImGui
@@ -333,7 +389,15 @@ def main():
     view_loc = glGetUniformLocation(ShaderProgram, "view")
     proj_loc = glGetUniformLocation(ShaderProgram, "projection")
     
+
+    glUseProgram(SkyboxShader)
+    glUniform1i(glGetUniformLocation(SkyboxShader,"skybox"),4)
+
+    view_loc_S =glGetUniformLocation(SkyboxShader,"view")
+    proj_loc_S =glGetUniformLocation(SkyboxShader,"projection")
    
+
+ 
     #Element 
 
     rotationAngle=0.0
@@ -393,22 +457,15 @@ def main():
         keys=pygame.key.get_pressed()
         if keys[pygame.K_w]:
             camera.Position += camera.Orientation* camera.speed
-            print("W is pressed")
-            print(camera.Position)
 
         if keys[pygame.K_s]:
             camera.Position -= camera.Orientation * camera.speed
-            print("S is pressed")
-            print(camera.Position)
 
         if keys[pygame.K_d]:
             camera.Position +=   camera.Right * camera.speed 
-            print("d is pressed")
-            print(camera.Position)
 
         if keys[pygame.K_a]:
             camera.Position -=  camera.speed * camera.Right 
-            print("a is pressed")
 
         if keys[pygame.K_SPACE]:
             camera.Position += WORLD_UP * camera.speed 
@@ -437,6 +494,7 @@ def main():
         camera.update_vectors()
     
 
+        glUseProgram(ShaderProgram)
         projection ,view=camera.Matrix(FOVdeg=45.0,nearPlane=0.1,farPlane=500.0)
         glUniformMatrix4fv(view_loc,1,GL_FALSE,view)
         glUniformMatrix4fv(proj_loc,1,GL_FALSE,projection)
@@ -512,10 +570,6 @@ def main():
         
 
 
-        
-        
-
-        
         #Perlin Noise Text
         glActiveTexture(GL_TEXTURE5)
         glBindTexture(GL_TEXTURE_2D,PerlinNoise1)
@@ -529,6 +583,7 @@ def main():
         glUniform1iv(glGetUniformLocation(ShaderProgram,"BlockTextures"),
                      4,np.array([0,1,2,3],dtype=np.int32))
 
+
         VAO1.bind()
 
         #Call world generation func
@@ -539,6 +594,28 @@ def main():
         CubeVBO.unbind()
         InstanceVBO.unbind()
 
+
+        ##Skybox DRAWING
+        view_no_translate=view.copy()
+        view_no_translate[3][:3]=0
+ 
+        
+        glDepthFunc(GL_LEQUAL)
+
+        glUseProgram(SkyboxShader)
+        glUniformMatrix4fv(view_loc_S, 1, GL_FALSE, view_no_translate)
+        glUniformMatrix4fv(proj_loc_S, 1, GL_FALSE, projection)
+
+        skyBoxVAO.bind()
+        
+        glActiveTexture(GL_TEXTURE4)
+        glBindTexture(GL_TEXTURE_CUBE_MAP,Skybox)
+
+        glDrawArrays(GL_TRIANGLES, 0, 36)
+
+        glDepthFunc(GL_LESS)
+
+ 
 
         # Render ImGui on top
         imgui.render()
