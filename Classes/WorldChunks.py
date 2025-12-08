@@ -39,13 +39,7 @@ class World:
         chunk.Size = np.array([Chunk_Size]*3, dtype=np.float32)
 
         # Initialize voxels based on position (your perlin noise logic goes here)
-        for i in range(Voxel_Count):
-            if cz < 0:
-                chunk.Voxels[i] = 1
-            elif cz > 0:
-                chunk.Voxels[i] = 2
-            else:
-                chunk.Voxels[i] = 3
+        chunk.Voxels=np.zeros(Voxel_Count,dtype=np.uint32)
 
         key = (cx, cy, cz)
         self.WorldMap[key] = chunk
@@ -80,8 +74,6 @@ class World:
 
                         self.VisibleCubePositions.append(world_pos)
                         self.BlockTypes.append(chunk.Voxels[index])
-        #Debug
-        #print(f"Rendering {len(self.VisibleCubePositions)} blocks in {len(self.WorldMap)} chunks")
 
         # Upload instance data to GPU
         if self.VisibleCubePositions:
@@ -101,18 +93,18 @@ class World:
                 len(self.VisibleCubePositions)
             )
     
-    def DrawVoxel(self, worldPos: np.ndarray):
+    def DrawVoxel(self, worldPos: np.ndarray, BlockType):
         """Place a block at world position, creating chunks as needed"""
         worldPos=worldPos+0.5
         wx, wy, wz = map(int, np.floor(worldPos))
         
-        print(f"\n=== DrawVoxel called ===")
-        print(f"World position: ({wx}, {wy}, {wz})")
+        # print(f"\n=== DrawVoxel called ===")
+        # print(f"World position: ({wx}, {wy}, {wz})")
 
         # Compute chunk coordinates
         cx, cy, cz = wx // Chunk_Size, wy // Chunk_Size, wz // Chunk_Size
         chunk_coords = (cx, cy, cz)
-        print(f"Chunk coords: {chunk_coords}")
+        # print(f"Chunk coords: {chunk_coords}")
 
         # Get or create the chunk
         chunk = self.GetOrCreateChunk(chunk_coords)
@@ -132,9 +124,9 @@ class World:
             return
 
         print(f"Current voxel value: {chunk.Voxels[voxel_index]}")
-        chunk.Voxels[voxel_index] = 1
-        print(f"After setting: {chunk.Voxels[voxel_index]}")
-        print(f"✓ Block placed successfully!")
+        chunk.Voxels[voxel_index] = BlockType
+        # print(f"After setting: {chunk.Voxels[voxel_index]}")
+        # print(f"✓ Block placed successfully!")
 
     def RemoveVoxel(self, worldPos: np.ndarray):
         """Remove a block at world position"""

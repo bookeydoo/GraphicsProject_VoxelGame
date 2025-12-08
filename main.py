@@ -396,12 +396,14 @@ def main():
     proj_loc_S =glGetUniformLocation(SkyboxShader,"projection")
    
 
- 
+
+    #Variable to select Blocks
+    SelectedBlock=1
+
     #Element 
-
     rotationAngle=0.0
-    #Positons 
 
+    #Positons 
     LightSourcePos=[0,20,0] 
     PlayerPos=[0,0,0] 
 
@@ -448,7 +450,7 @@ def main():
                 Hit_pos,placePos= MyWorld.GetTargetVoxel(ray_origin=camera.Position,ray_direction=camera.Orientation,max_distance=10.0 )
                 if event.button == 1:
                     if placePos is not None:
-                        MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32))
+                        MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32),SelectedBlock)
                         # print(f"CAMERA DEBUG:")
                         # print(f"  Position: {camera.Position}")
                         # print(f"  Orientation: {camera.Orientation}")
@@ -557,37 +559,49 @@ def main():
         if ShowBlocksWindow==True:
             imgui.begin("Blocks")
             imgui.separator()
-            imgui.image_button(sandtext,64,64)
+
+            if imgui.image_button(sandtext,64,64):
+                SelectedBlock=2
+            imgui.same_line()
+            
+            if imgui.image_button(snowtext,64,64):
+                SelectedBlock=3
             imgui.same_line()
 
-            imgui.image_button(snowtext,64,64)
+            if imgui.image_button(dirttext,64,64):
+                SelectedBlock=4
             imgui.same_line()
 
-            imgui.image_button(dirttext,64,64)
+            if imgui.image_button(stonetext,64,64):
+                SelectedBlock=5
             imgui.same_line()
 
-            imgui.image_button(stonetext,64,64)
-            imgui.same_line()
-
-            imgui.image_button(diamondstext,64,64)
+            if imgui.image_button(diamondstext,64,64):
+                SelectedBlock=6
             imgui.separator()
 
-            imgui.image_button(Cyanblocktext,64,64)
+            if imgui.image_button(Cyanblocktext,64,64):
+                SelectedBlock=7
             imgui.same_line()
 
-            imgui.image_button(Darkoaktext,64,64)
+            if imgui.image_button(Darkoaktext,64,64):
+                SelectedBlock=8
             imgui.same_line()
 
-            imgui.image_button(reddishtext,64,64)
+            if imgui.image_button(reddishtext,64,64):
+                SelectedBlock=9
             imgui.same_line()
 
-            imgui.image_button(TubeCoraltext,64,64)
+            if imgui.image_button(TubeCoraltext,64,64):
+                SelectedBlock=10
             imgui.same_line()
 
-            imgui.image_button(cherryblocktext,64,64)
+            if imgui.image_button(cherryblocktext,64,64):
+                SelectedBlock=11
             imgui.same_line()
 
-            imgui.image_button(oaktext,64,64)
+            if imgui.image_button(oaktext,64,64):
+                SelectedBlock=12
  
 
  
@@ -686,7 +700,7 @@ def main():
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
         glUniformMatrix4fv(proj_loc, 1, GL_FALSE,projection)
         glUniform1iv(glGetUniformLocation(ShaderProgram,"BlockTextures"),
-                     4,np.array([0,1,2,3],dtype=np.int32))
+                     13,np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13],dtype=np.int32))
 
 
         VAO1.bind()
