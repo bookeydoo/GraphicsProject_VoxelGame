@@ -49,7 +49,6 @@ class World:
 
         key = (cx, cy, cz)
         self.WorldMap[key] = chunk
-        print(f"Created new chunk at {key}")
         return chunk
     
     def GetOrCreateChunk(self, chunk_coords):
@@ -81,8 +80,8 @@ class World:
 
                         self.VisibleCubePositions.append(world_pos)
                         self.BlockTypes.append(chunk.Voxels[index])
-
-        print(f"Rendering {len(self.VisibleCubePositions)} blocks in {len(self.WorldMap)} chunks")
+        #Debug
+        #print(f"Rendering {len(self.VisibleCubePositions)} blocks in {len(self.WorldMap)} chunks")
 
         # Upload instance data to GPU
         if self.VisibleCubePositions:
@@ -129,14 +128,13 @@ class World:
         print(f"Voxel index: {voxel_index}")
 
         if not (0 <= voxel_index < Voxel_Count):
-            print(f"❌ Index {voxel_index} out of bounds!")
+            print(f"Index {voxel_index} out of bounds!")
             return
 
         print(f"Current voxel value: {chunk.Voxels[voxel_index]}")
         chunk.Voxels[voxel_index] = 1
         print(f"After setting: {chunk.Voxels[voxel_index]}")
         print(f"✓ Block placed successfully!")
-        print("======================\n")
 
     def RemoveVoxel(self, worldPos: np.ndarray):
         """Remove a block at world position"""

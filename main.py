@@ -15,12 +15,6 @@ from Classes.EBO import EBO
 from Classes.Camera import Camera
 from Classes.WorldChunks import World 
 
-WORLD_FORWARD = pyrr.Vector3([0.0, 0.0, -1.0])  # Negative Z-axis is typically "forward"
-WORLD_BACKWARD = pyrr.Vector3([0.0, 0.0, 1.0])   # Positive Z-axis is "backward"
-WORLD_RIGHT = pyrr.Vector3([1.0, 0.0, 0.0])      # Positive X-axis is "right"
-WORLD_LEFT = pyrr.Vector3([-1.0, 0.0, 0.0])      # Negative X-axis is "left"
-WORLD_UP = pyrr.Vector3([0.0, 1.0, 0.0])         # Positive Y-axis is "up"
-
 ####################################################################################
         ###Defining the voxel shape###
 ####################################################################################
@@ -274,6 +268,8 @@ def main():
     sandtext=load_texture(TexturesDir+"/sandTexture.jpg")
     snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
     dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
+    stonetext=load_texture(TexturesDir+"/stoneblock.png")
+    diamondstext=load_texture(TexturesDir+"/diamonds.jpeg")
 
     skyboxText0=TexturesDir+"/cubemap_1.png"
     skyboxText1=TexturesDir+"/cubemap_1.png"
@@ -414,7 +410,9 @@ def main():
     timeCounter=0
 
     #Debug vars 
-    ShowDevWindow=True
+    ShowDevWindow=False
+    ShowBlocksWindow=False
+    ShowTutorWindow=True
 
     #INIT WORLD
     MyWorld=World()
@@ -447,14 +445,14 @@ def main():
                 if event.button == 1:
                     if placePos is not None:
                         MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32))
-                        print(f"CAMERA DEBUG:")
-                        print(f"  Position: {camera.Position}")
-                        print(f"  Orientation: {camera.Orientation}")
-                        print(f"  Yaw: {camera.yaw:.2f}°, Pitch: {camera.pitch:.2f}°")
-                        print(f"  Right vector: {camera.Right}")
-                        print(f"Block added at ",placePos,Hit_pos)
-                        look_at_5 = camera.Position + camera.Orientation * 5.0
-                        print(f"looking at 5 units:{look_at_5}")
+                        # print(f"CAMERA DEBUG:")
+                        # print(f"  Position: {camera.Position}")
+                        # print(f"  Orientation: {camera.Orientation}")
+                        # print(f"  Yaw: {camera.yaw:.2f}°, Pitch: {camera.pitch:.2f}°")
+                        # print(f"  Right vector: {camera.Right}")
+                        # print(f"Block added at ",placePos,Hit_pos)
+                        # look_at_5 = camera.Position + camera.Orientation * 5.0
+                        # print(f"looking at 5 units:{look_at_5}")
                 elif event.button == 3:
                    if Hit_pos is not None:
                        MyWorld.RemoveVoxel(np.array(Hit_pos,dtype=np.float32)) 
@@ -463,11 +461,17 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key ==pygame.K_F12:
                     if not ShowDevWindow:
-                        print("Enabled Dev window")
                         ShowDevWindow=True
                     else:
-                        print("Disabled Dev window")
                         ShowDevWindow=False
+                
+                if event.key == pygame.K_TAB:
+                        ShowTutorWindow=False
+                        if not ShowBlocksWindow:
+                            ShowBlocksWindow=True
+                        else:
+                            ShowBlocksWindow=False
+
                 if event.key == pygame.K_ESCAPE:
                     ExitFunc()
                     break
@@ -495,7 +499,7 @@ def main():
             camera.Position -=  camera.speed * camera.Right 
 
         if keys[pygame.K_SPACE]:
-            camera.Position += WORLD_UP * camera.speed 
+            camera.Position += camera.Up* camera.speed 
 
         if keys[pygame.K_LCTRL]:
             camera.Position -= camera.Up * camera.speed 
@@ -535,6 +539,28 @@ def main():
         imgui.set_next_window_position(50,50)
         imgui.set_next_window_size(400,400)
 
+        if ShowTutorWindow==True:
+            imgui.begin("Tutorial")
+            imgui.text("Hello and welcome to my voxel editor")
+            imgui.text("To MOVE use WASD and place with m1 and remove with m2")
+            imgui.text("To choose blocks press tab ")
+            imgui.end()
+
+        if ShowBlocksWindow==True:
+            imgui.begin("Blocks")
+            imgui.separator()
+            imgui.image_button(sandtext,64,64)
+            imgui.same_line()
+            imgui.image_button(snowtext,64,64)
+            imgui.same_line()
+            imgui.image_button(dirttext,64,64)
+            imgui.same_line()
+            imgui.image_button(stonetext,64,64)
+            imgui.same_line()
+            imgui.image_button(diamondstext,64,64)
+            imgui.same_line()
+            imgui.end()
+            
         if ShowDevWindow==True:
             # UI (must have begin/end)
             imgui.begin("Debug Window")
