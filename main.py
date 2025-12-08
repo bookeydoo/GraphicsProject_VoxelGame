@@ -240,8 +240,6 @@ def process_pygame_inputs():
 def main():
     #pygame.mixer.pre_init(44100, -16, 2, 512)
 
-    print(imgui.__version__)
-    print(imgui.__file__)
     pygame.init()
     
     InitOpengl()
@@ -250,9 +248,8 @@ def main():
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Simple voxel test")
 
-    pygame.mouse.set_visible(False)
     pygame.event.set_grab(True)
-
+    pygame.mouse.set_visible(False)
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -269,7 +266,13 @@ def main():
     snowtext=load_texture(TexturesDir+"/snowTexture.jpg")
     dirttext=load_texture(TexturesDir+"/DirtTexture.jpg")
     stonetext=load_texture(TexturesDir+"/stoneblock.png")
-    diamondstext=load_texture(TexturesDir+"/diamonds.jpeg")
+    diamondstext=load_texture(TexturesDir+"/DiamondBlock.jpg")
+    Darkoaktext=load_texture(TexturesDir+"/darkoak.png")
+    Cyanblocktext=load_texture(TexturesDir+"/CyanBlock.png")
+    oaktext=load_texture(TexturesDir+"/oak.png")
+    reddishtext=load_texture(TexturesDir+"/reddishblock.png")
+    cherryblocktext=load_texture(TexturesDir+"/cherryblock.png")
+    TubeCoraltext=load_texture(TexturesDir+"/TubeCoral.png")
 
     skyboxText0=TexturesDir+"/cubemap_1.png"
     skyboxText1=TexturesDir+"/cubemap_1.png"
@@ -413,6 +416,7 @@ def main():
     ShowDevWindow=False
     ShowBlocksWindow=False
     ShowTutorWindow=True
+    EnablePlacing=True
 
     #INIT WORLD
     MyWorld=World()
@@ -440,7 +444,7 @@ def main():
                 projection = pyrr.matrix44.create_perspective_projection(
                     45.0, event.w/event.h, 0.1, 100.0).astype(np.float32)
             
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and EnablePlacing:
                 Hit_pos,placePos= MyWorld.GetTargetVoxel(ray_origin=camera.Position,ray_direction=camera.Orientation,max_distance=10.0 )
                 if event.button == 1:
                     if placePos is not None:
@@ -453,7 +457,7 @@ def main():
                         # print(f"Block added at ",placePos,Hit_pos)
                         # look_at_5 = camera.Position + camera.Orientation * 5.0
                         # print(f"looking at 5 units:{look_at_5}")
-                elif event.button == 3:
+                elif event.button == 3 and EnablePlacing:
                    if Hit_pos is not None:
                        MyWorld.RemoveVoxel(np.array(Hit_pos,dtype=np.float32)) 
                        print("block removed ?")
@@ -469,8 +473,12 @@ def main():
                         ShowTutorWindow=False
                         if not ShowBlocksWindow:
                             ShowBlocksWindow=True
+                            pygame.mouse.set_visible(True)
+                            EnablePlacing=False
                         else:
                             ShowBlocksWindow=False
+                            pygame.mouse.set_visible(False)
+                            EnablePlacing=True
 
                 if event.key == pygame.K_ESCAPE:
                     ExitFunc()
@@ -551,14 +559,39 @@ def main():
             imgui.separator()
             imgui.image_button(sandtext,64,64)
             imgui.same_line()
+
             imgui.image_button(snowtext,64,64)
             imgui.same_line()
+
             imgui.image_button(dirttext,64,64)
             imgui.same_line()
+
             imgui.image_button(stonetext,64,64)
             imgui.same_line()
+
             imgui.image_button(diamondstext,64,64)
+            imgui.separator()
+
+            imgui.image_button(Cyanblocktext,64,64)
             imgui.same_line()
+
+            imgui.image_button(Darkoaktext,64,64)
+            imgui.same_line()
+
+            imgui.image_button(reddishtext,64,64)
+            imgui.same_line()
+
+            imgui.image_button(TubeCoraltext,64,64)
+            imgui.same_line()
+
+            imgui.image_button(cherryblocktext,64,64)
+            imgui.same_line()
+
+            imgui.image_button(oaktext,64,64)
+ 
+
+ 
+
             imgui.end()
             
         if ShowDevWindow==True:
@@ -616,7 +649,30 @@ def main():
         glActiveTexture(GL_TEXTURE4)
         glBindTexture(GL_TEXTURE_CUBE_MAP,Skybox)
 
-        
+        glActiveTexture(GL_TEXTURE6)
+        glBindTexture(GL_TEXTURE_2D,stonetext)
+
+        glActiveTexture(GL_TEXTURE7)
+        glBindTexture(GL_TEXTURE_2D,diamondstext)
+
+        glActiveTexture(GL_TEXTURE8)
+        glBindTexture(GL_TEXTURE_2D,oaktext)
+ 
+        glActiveTexture(GL_TEXTURE9)
+        glBindTexture(GL_TEXTURE_2D,reddishtext)
+
+        glActiveTexture(GL_TEXTURE10)
+        glBindTexture(GL_TEXTURE_2D,Cyanblocktext)
+
+        glActiveTexture(GL_TEXTURE11)
+        glBindTexture(GL_TEXTURE_2D,TubeCoraltext)
+
+        glActiveTexture(GL_TEXTURE12)
+        glBindTexture(GL_TEXTURE_2D,Darkoaktext)
+
+        glActiveTexture(GL_TEXTURE13)
+        glBindTexture(GL_TEXTURE_2D,cherryblocktext)
+ 
 
 
         #Perlin Noise Text
