@@ -21,7 +21,9 @@ class World:
     def __init__(self):
         self.WorldMap: dict[tuple, Chunk] = {}
         self.VisibleCubePositions: list[tuple] = []
+        self.CreatedGroundFlag=0
         self.BlockTypes = []
+        self.count=0
       
     def InitWorld(self, PlayerPos):
         radius = 2
@@ -41,6 +43,20 @@ class World:
 
         # Initialize voxels based on position (your perlin noise logic goes here)
         chunk.Voxels=np.zeros(Voxel_Count,dtype=np.uint32)
+        if not self.CreatedGroundFlag:
+            if cy == 0:
+                for z in range(Chunk_Size):
+                    for x in range(Chunk_Size):
+                        y = 0  # bottom layer
+                        index = x + y * Chunk_Size + z * Chunk_Size * Chunk_Size
+                        chunk.Voxels[index] = 1
+                        chunk.Colors[index] = np.array([0.3, 0.8, 0.3, 1.0], dtype=np.float32)
+                        self.count+=1
+            # --------------------
+            
+
+        if self.count == 80:
+            self.CreatedGroundFlag=True
 
         key = (cx, cy, cz)
         self.WorldMap[key] = chunk
@@ -170,7 +186,6 @@ class World:
         distance_traveled = 0.0
         hit_normal = (0, 0, 0)
         # Keep track of last empty voxel along the ray
-        last_empty = (x, y, z)
 
         while distance_traveled <= max_distance:
 
@@ -198,7 +213,6 @@ class World:
                     distance_traveled = tMax_z
                     tMax_z += tDelta_z
 
-            last_empty=(x,y,z)
 
             chunk_key = (x // Chunk_Size, y // Chunk_Size, z // Chunk_Size)
             if chunk_key not in self.WorldMap:
@@ -220,4 +234,4 @@ class World:
                     )
                     return hit_pos, place_pos
 
-        return None, last_empty 
+        return None,None 

@@ -458,6 +458,7 @@ def main():
     #INIT WORLD
     MyWorld=World()
     MyWorld.InitWorld(np.array(camera.Position,dtype=np.float32))
+
     
 
     while True:
@@ -579,7 +580,6 @@ def main():
                         Rotated = False
         
 
-      
         
         keys=pygame.key.get_pressed()
         if keys[pygame.K_w]:
@@ -600,11 +600,7 @@ def main():
         if keys[pygame.K_LCTRL]:
             camera.Position -= camera.Up * camera.speed 
 
-            
 
-
- 
-            
         #DEBUGGING
         CrntTime=time.time()
         timeDiff=CrntTime-PrevTime
