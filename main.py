@@ -335,7 +335,7 @@ def main():
 
     stride = 8 * 4
     VAO1.LinkVBO(CubeVBO, 0, 3, GL_FLOAT, stride, 0)     # pos
-    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color (unused)
+    VAO1.LinkVBO(CubeVBO, 1, 3, GL_FLOAT, stride, 12)    # color 
     VAO1.LinkVBO(CubeVBO, 2, 2, GL_FLOAT, stride, 24)    # texcoord
 
     # --- Instance VBO ---
@@ -346,15 +346,24 @@ def main():
     # We don't upload instance_data here (world will upload every frame)
     glBufferData(GL_ARRAY_BUFFER, 0, None, GL_DYNAMIC_DRAW)
 
+    instance_stride=8*4 # 3(pos) + 1(type) + 4(color)
+
     # Attribute 3 = instance position vec3
     glEnableVertexAttribArray(3)
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(0))
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, instance_stride, ctypes.c_void_p(0))
     glVertexAttribDivisor(3, 1)
 
     # Attribute 4 = block type float
     glEnableVertexAttribArray(4)
-    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, 4*4, ctypes.c_void_p(12))
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, instance_stride, ctypes.c_void_p(12))
     glVertexAttribDivisor(4, 1)
+
+    # Attribute 5 =Color RGBA
+    glEnableVertexAttribArray(5)
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, instance_stride, ctypes.c_void_p(16))
+    glVertexAttribDivisor(5, 1)
+
+
 
     VAO1.unbind()
 
@@ -387,6 +396,8 @@ def main():
     model_loc = glGetUniformLocation(ShaderProgram, "model")
     view_loc = glGetUniformLocation(ShaderProgram, "view")
     proj_loc = glGetUniformLocation(ShaderProgram, "projection")
+
+    custom_color_loc = glGetUniformLocation(ShaderProgram, "u_CustomColor")
     
 
     glUseProgram(SkyboxShader)
@@ -404,11 +415,10 @@ def main():
     rotationAngle=0.0
 
     #Positons 
-    LightSourcePos=[0,20,0] 
-    PlayerPos=[0,0,0] 
 
     #Bool for checks 
     Rotated=True 
+    UseCustomColor=False
 
     #Timers 
     PrevTime=0
@@ -418,7 +428,10 @@ def main():
     ShowDevWindow=False
     ShowBlocksWindow=False
     ShowTutorWindow=True
+    ShowCustomWindow=False
     EnablePlacing=True
+
+    blockColor=[1.0, 0.0, 0.2, 0.1]
 
     #INIT WORLD
     MyWorld=World()
@@ -431,7 +444,10 @@ def main():
 
        #Compute mouse delta
         mouse_dx,mouse_dy=pygame.mouse.get_rel() 
-        camera.inputs(mouse_dx,mouse_dy)
+        if EnablePlacing==False:
+            camera.inputs(0,0)
+        else:
+            camera.inputs(mouse_dx,mouse_dy)
         
         camera.update_vectors()
 
@@ -450,7 +466,10 @@ def main():
                 Hit_pos,placePos= MyWorld.GetTargetVoxel(ray_origin=camera.Position,ray_direction=camera.Orientation,max_distance=10.0 )
                 if event.button == 1:
                     if placePos is not None:
-                        MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32),SelectedBlock)
+                        if(UseCustomColor):
+                            MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32),99,blockColor)
+                        else:
+                            MyWorld.DrawVoxel(np.array(placePos,dtype=np.float32),SelectedBlock,blockColor)
                         # print(f"CAMERA DEBUG:")
                         # print(f"  Position: {camera.Position}")
                         # print(f"  Orientation: {camera.Orientation}")
@@ -472,6 +491,7 @@ def main():
                         ShowDevWindow=False
                 
                 if event.key == pygame.K_TAB:
+                        UseCustomColor=False
                         ShowTutorWindow=False
                         if not ShowBlocksWindow:
                             ShowBlocksWindow=True
@@ -482,9 +502,29 @@ def main():
                             pygame.mouse.set_visible(False)
                             EnablePlacing=True
 
+                if event.key == pygame.K_x:
+                    ShowTutorWindow=False
+                    if not ShowCustomWindow:
+                        UseCustomColor=True
+                        ShowCustomWindow=True
+                        pygame.mouse.set_visible(True)
+                        EnablePlacing=False
+                    else:
+                        ShowCustomWindow=False
+                        pygame.mouse.set_visible(False)
+                        EnablePlacing=True
+                    
+                    
+                    
                 if event.key == pygame.K_ESCAPE:
-                    ExitFunc()
-                    break
+                    if ShowBlocksWindow:
+                        UseCustomColor=False
+                        ShowBlocksWindow=False
+                        pygame.mouse.set_visible(False)
+                        EnablePlacing=True
+                    else:
+                        ExitFunc()
+                        break
 
                 if event.key == pygame.K_r:
                     if not Rotated:
@@ -603,10 +643,27 @@ def main():
             if imgui.image_button(oaktext,64,64):
                 SelectedBlock=12
  
+            imgui.end()
 
- 
+        if ShowCustomWindow==True:
+            imgui.set_next_window_size(200,200,imgui.FIRST_USE_EVER)
+            imgui.begin("Custom block")           
+
+            changed,blockColor= imgui.color_edit4(
+                "My Color",
+                *blockColor,
+                imgui.COLOR_EDIT_PICKER_HUE_WHEEL|
+                imgui.COLOR_EDIT_ALPHA_BAR|
+                imgui.COLOR_EDIT_ALPHA_PREVIEW
+            )
+
+            imgui.text("Preview")
+
+            if changed:
+                print("New color:", blockColor)
 
             imgui.end()
+
             
         if ShowDevWindow==True:
             # UI (must have begin/end)
@@ -696,6 +753,7 @@ def main():
         glUniform1i(glGetUniformLocation(ShaderProgram,"noiseTexture"),5)
         glUniform1f(glGetUniformLocation(ShaderProgram,"heightScale"),2.0)
 
+        glUniform4f(custom_color_loc, *blockColor)  # Unpack the list here!
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, model)
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
         glUniformMatrix4fv(proj_loc, 1, GL_FALSE,projection)
