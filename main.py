@@ -193,7 +193,6 @@ def load_texture(path):
     return textureID
 
 def load_texture_skybox(facePaths):
-    # Upload image to OpenGL
 
     # Create texture ID
     textureID = glGenTextures(1)
@@ -209,11 +208,9 @@ def load_texture_skybox(facePaths):
 
     for i,path in enumerate(facePaths):
 
-        # Load image
-        image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
-        img_data = image.convert("RGBA").tobytes()
+        image = Image.open(path).convert("RGBA")
+        img_data=image.tobytes()
         width, height = image.size
-
 
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, GL_RGBA, width, height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, img_data)
@@ -274,17 +271,42 @@ def main():
     cherryblocktext=load_texture(TexturesDir+"/cherryblock.png")
     TubeCoraltext=load_texture(TexturesDir+"/TubeCoral.png")
 
-    skyboxText0=TexturesDir+"/cubemap_1.png"
+    skyboxText0=TexturesDir+"/cubemap_0.png"
     skyboxText1=TexturesDir+"/cubemap_1.png"
     skyboxText2=TexturesDir+"/cubemap_2.png"
     skyboxText3=TexturesDir+"/cubemap_3.png"
     skyboxText4=TexturesDir+"/cubemap_4.png"
     skyboxText5=TexturesDir+"/cubemap_5.png"
     
-    skyboxFaces=[skyboxText0,skyboxText1,skyboxText2,skyboxText3,skyboxText4,skyboxText5]
+    Cosmic1_skyboxText0=TexturesDir+"/right.png"
+    Cosmic1_skyboxText1=TexturesDir+"/left.png"
+    Cosmic1_skyboxText2=TexturesDir+"/top.png"
+    Cosmic1_skyboxText3=TexturesDir+"/bottom.png"
+    Cosmic1_skyboxText4=TexturesDir+"/front.png"
+    Cosmic1_skyboxText5=TexturesDir+"/back.png"
 
-    Skybox=load_texture_skybox(skyboxFaces)
+    Cosmic2_skyboxText0=TexturesDir+"/right2.png"
+    Cosmic2_skyboxText1=TexturesDir+"/left2.png"
+    Cosmic2_skyboxText2=TexturesDir+"/top2.png"
+    Cosmic2_skyboxText3=TexturesDir+"/bottom2.png"
+    Cosmic2_skyboxText4=TexturesDir+"/front2.png"
+    Cosmic2_skyboxText5=TexturesDir+"/back2.png"
+    
 
+
+    skyboxFaces=[skyboxText1,skyboxText5,skyboxText2,skyboxText3,skyboxText0,skyboxText4]
+    Cosmic1_skyboxFaces=[Cosmic1_skyboxText0,Cosmic1_skyboxText1,Cosmic1_skyboxText2,Cosmic1_skyboxText3,Cosmic1_skyboxText4,Cosmic1_skyboxText5]
+    Cosmic2_skyboxFaces=[Cosmic2_skyboxText0,Cosmic2_skyboxText1,Cosmic2_skyboxText2,Cosmic2_skyboxText3,Cosmic2_skyboxText4,Cosmic2_skyboxText5]
+
+    
+    skyboxes={
+        "daytime" :        load_texture_skybox(skyboxFaces),
+        "Cosmic1_Skybox": load_texture_skybox(Cosmic1_skyboxFaces),
+        "Cosmic2_Skybox": load_texture_skybox(Cosmic2_skyboxFaces)
+    }
+
+    Current_skybox=skyboxes["daytime"]
+    Current_skybox_val="daytime"
 
     #PERLIN NOISE TEXT
     PerlinNoise1=load_texture(TexturesDir+"/perlin_noise.png")
@@ -437,8 +459,6 @@ def main():
     MyWorld=World()
     MyWorld.InitWorld(np.array(camera.Position,dtype=np.float32))
     
-    
-
 
     while True:
 
@@ -481,7 +501,6 @@ def main():
                 elif event.button == 3 and EnablePlacing:
                    if Hit_pos is not None:
                        MyWorld.RemoveVoxel(np.array(Hit_pos,dtype=np.float32)) 
-                       print("block removed ?")
 
             if event.type == pygame.KEYDOWN:
                 if event.key ==pygame.K_F12:
@@ -513,13 +532,40 @@ def main():
                         ShowCustomWindow=False
                         pygame.mouse.set_visible(False)
                         EnablePlacing=True
-                    
+                
+                if event.key == pygame.K_F1:
+                    if Current_skybox_val == "daytime" :
+                        print("already daytime") 
+                    else :
+                        Current_skybox = skyboxes["daytime"]
+                        Current_skybox_val="daytime"
+
+                if event.key == pygame.K_F2:
+                    if Current_skybox_val == "Cosmic1_Skybox" :
+                        print("already cosmic1_galaxy") 
+                    else :
+                        Current_skybox = skyboxes["Cosmic1_Skybox"]
+                        Current_skybox_val="Cosmic1_Skybox"
+
+                if event.key == pygame.K_F3:
+                    if Current_skybox_val == "Cosmic2_Skybox" :
+                        print("already cosmic2_galaxy") 
+                    else :
+                        Current_skybox = skyboxes["Cosmic2_Skybox"]
+                        Current_skybox_val="Cosmic2_Skybox"
+
+
+
                     
                     
                 if event.key == pygame.K_ESCAPE:
                     if ShowBlocksWindow:
                         UseCustomColor=False
                         ShowBlocksWindow=False
+                        pygame.mouse.set_visible(False)
+                        EnablePlacing=True
+                    if ShowCustomWindow:
+                        ShowCustomWindow=False
                         pygame.mouse.set_visible(False)
                         EnablePlacing=True
                     else:
@@ -593,7 +639,8 @@ def main():
             imgui.begin("Tutorial")
             imgui.text("Hello and welcome to my voxel editor")
             imgui.text("To MOVE use WASD and place with m1 and remove with m2")
-            imgui.text("To choose blocks press tab ")
+            imgui.text("To choose blocks press tab  and for custom blocks press x")
+            imgui.text("To change skyboxes press f1 to f3 ")
             imgui.end()
 
         if ShowBlocksWindow==True:
@@ -718,7 +765,7 @@ def main():
         glBindTexture(GL_TEXTURE_2D,snowtext)
 
         glActiveTexture(GL_TEXTURE4)
-        glBindTexture(GL_TEXTURE_CUBE_MAP,Skybox)
+        glBindTexture(GL_TEXTURE_CUBE_MAP,Current_skybox)
 
         glActiveTexture(GL_TEXTURE6)
         glBindTexture(GL_TEXTURE_2D,stonetext)
@@ -786,7 +833,7 @@ def main():
         skyBoxVAO.bind()
         
         glActiveTexture(GL_TEXTURE4)
-        glBindTexture(GL_TEXTURE_CUBE_MAP,Skybox)
+        glBindTexture(GL_TEXTURE_CUBE_MAP,Current_skybox)
 
         glDrawArrays(GL_TRIANGLES, 0, 36)
 
