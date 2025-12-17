@@ -24,12 +24,6 @@ void main() {
     //Scale the texture
     vec2 scaledUV=(aInstancePos.xz)*0.1;
 
-    // float noiseVal = texture(noiseTexture, scaledUV).r;
-    // float displacement;
-    // if (noiseVal > 0.7) displacement = noiseVal * heightScale * 2.0;
-    // else if (noiseVal > 0.3) displacement = noiseVal * heightScale;
-    // else displacement = noiseVal * heightScale * 0.1;
-
     vec3 worldPos = aPos + aInstancePos ;
     // worldPos.y += displacement*5.0;
 
