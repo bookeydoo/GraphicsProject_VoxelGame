@@ -15,6 +15,7 @@ class Chunk:
     Position: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
     Size: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
     Voxels: np.ndarray = field(default_factory=lambda: np.zeros(Voxel_Count, dtype=np.uint32))
+    Colors: np.ndarray = field(default_factory=lambda: np.ones((Voxel_Count, 4), dtype=np.float32))
 
 class World:
     def __init__(self):
@@ -55,6 +56,7 @@ class World:
     def DrawVisiChunks(self, instanceVBO_ID, EBO_ID):
         self.VisibleCubePositions.clear()
         self.BlockTypes.clear()
+        self.BlockColors=[]
 
         # Collect positions and block types
         for key, chunk in self.WorldMap.items():
@@ -74,12 +76,14 @@ class World:
 
                         self.VisibleCubePositions.append(world_pos)
                         self.BlockTypes.append(chunk.Voxels[index])
+                        self.BlockColors.append(chunk.Colors[index]) # Get the saved color
 
         # Upload instance data to GPU
         if self.VisibleCubePositions:
-            instance_data = np.zeros((len(self.VisibleCubePositions), 4), dtype=np.float32)
+            instance_data = np.zeros((len(self.VisibleCubePositions), 8), dtype=np.float32)
             instance_data[:, :3] = self.VisibleCubePositions
             instance_data[:, 3] = np.array(self.BlockTypes, dtype=np.float32) 
+            instance_data[:, 4:] = self.BlockColors # Add RGBA to the buffer
 
             glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_ID)
             glBufferData(GL_ARRAY_BUFFER, instance_data.nbytes, instance_data, GL_DYNAMIC_DRAW)
@@ -93,7 +97,7 @@ class World:
                 len(self.VisibleCubePositions)
             )
     
-    def DrawVoxel(self, worldPos: np.ndarray, BlockType):
+    def DrawVoxel(self, worldPos: np.ndarray, BlockType,BlockColor):
         """Place a block at world position, creating chunks as needed"""
         worldPos=worldPos+0.5
         wx, wy, wz = map(int, np.floor(worldPos))
@@ -125,6 +129,7 @@ class World:
 
         print(f"Current voxel value: {chunk.Voxels[voxel_index]}")
         chunk.Voxels[voxel_index] = BlockType
+        chunk.Colors[voxel_index] = BlockColor
         # print(f"After setting: {chunk.Voxels[voxel_index]}")
         # print(f"✓ Block placed successfully!")
 
